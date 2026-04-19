@@ -30,7 +30,7 @@ pb-panel bu iş için native bir macOS/Windows uygulaması:
 
 ## Kurulum
 
-### macOS (Apple Silicon / Intel)
+### macOS (Apple Silicon)
 
 1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_*.dmg` indir
 2. DMG'yi aç, `pb-panel.app`'i `Applications`'a sürükle
