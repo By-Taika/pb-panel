@@ -11,8 +11,12 @@ fn client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
-async fn gh_get<T: serde::de::DeserializeOwned>(path: &str, account: &str) -> Option<T> {
-    let token = token_for(account)?;
+async fn gh_get<T: serde::de::DeserializeOwned>(
+    path: &str,
+    account_id: &str,
+    env_var: Option<&str>,
+) -> Option<T> {
+    let token = token_for(account_id, env_var)?;
     let res = client()
         .get(format!("{}{}", API_BASE, path))
         .bearer_auth(&token)
@@ -53,9 +57,14 @@ pub struct OpenPr {
     pub updated: String,
 }
 
-pub async fn fetch_open_prs(owner: &str, repo: &str, account: &str) -> Vec<OpenPr> {
+pub async fn fetch_open_prs(
+    owner: &str,
+    repo: &str,
+    account_id: &str,
+    env_var: Option<&str>,
+) -> Vec<OpenPr> {
     let path = format!("/repos/{}/{}/pulls?state=open&per_page=10", owner, repo);
-    let prs: Vec<GhPullRequest> = match gh_get(&path, account).await {
+    let prs: Vec<GhPullRequest> = match gh_get(&path, account_id, env_var).await {
         Some(v) => v,
         None => return Vec::new(),
     };
@@ -94,9 +103,14 @@ pub struct RepoMeta {
     pub language: Option<String>,
 }
 
-pub async fn fetch_repo_meta(owner: &str, repo: &str, account: &str) -> Option<RepoMeta> {
+pub async fn fetch_repo_meta(
+    owner: &str,
+    repo: &str,
+    account_id: &str,
+    env_var: Option<&str>,
+) -> Option<RepoMeta> {
     let path = format!("/repos/{}/{}", owner, repo);
-    let raw: GhRepoMetaRaw = gh_get(&path, account).await?;
+    let raw: GhRepoMetaRaw = gh_get(&path, account_id, env_var).await?;
     Some(RepoMeta {
         private: raw.private,
         default_branch: raw.default_branch,
@@ -118,6 +132,6 @@ pub struct GhUserInfo {
     pub avatar_url: String,
 }
 
-pub async fn fetch_user(account: &str) -> Option<GhUserInfo> {
-    gh_get("/user", account).await
+pub async fn fetch_user(account_id: &str, env_var: Option<&str>) -> Option<GhUserInfo> {
+    gh_get("/user", account_id, env_var).await
 }

@@ -1,3 +1,4 @@
+mod config;
 mod github;
 mod git_ops;
 mod repo;
@@ -10,28 +11,58 @@ use serde::Serialize;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    Emitter, Manager, State,
 };
 
-use crate::repo::{
-    get_repo_info, is_valid_category, list_all_repos, repo_path_for, RepoInfo, CATEGORIES,
-};
+use crate::config::{Config, ConfigStore};
+use crate::repo::{get_repo_info, is_valid_category, list_all_repos, repo_path_for, RepoInfo};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Health {
     ok: bool,
-    base: String,
-    categories: Vec<&'static str>,
+    config_path: String,
+    version: u32,
 }
 
 #[tauri::command]
 fn health() -> Health {
     Health {
         ok: true,
-        base: repo::base_dir().to_string_lossy().to_string(),
-        categories: CATEGORIES.to_vec(),
+        config_path: config::config_path_display(),
+        version: config::CONFIG_VERSION,
     }
+}
+
+#[tauri::command]
+fn get_config(store: State<'_, ConfigStore>) -> Config {
+    store.snapshot()
+}
+
+#[tauri::command]
+fn save_config(store: State<'_, ConfigStore>, cfg: Config) -> Result<(), String> {
+    store.replace(cfg)
+}
+
+#[tauri::command]
+fn account_has_token(account_id: String) -> bool {
+    tokens::keychain_has(&account_id)
+}
+
+#[tauri::command]
+fn set_account_token(account_id: String, token: String) -> Result<(), String> {
+    if account_id.trim().is_empty() {
+        return Err("account id required".into());
+    }
+    if token.trim().is_empty() {
+        return Err("token required".into());
+    }
+    tokens::keychain_set(&account_id, &token)
+}
+
+#[tauri::command]
+fn delete_account_token(account_id: String) -> Result<(), String> {
+    tokens::keychain_delete(&account_id)
 }
 
 #[derive(Serialize)]
@@ -42,39 +73,53 @@ struct AccountCard {
     avatar: String,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AccountsInfo {
-    rani: Option<AccountCard>,
-    personal: Option<AccountCard>,
+#[tauri::command]
+async fn accounts(
+    store: State<'_, ConfigStore>,
+) -> Result<BTreeMap<String, Option<AccountCard>>, String> {
+    let cfg = store.snapshot();
+    let futures = cfg.accounts.iter().map(|acc| {
+        let id = acc.id.clone();
+        let env = acc.env_var.clone();
+        let label_fallback = acc.label.clone();
+        async move {
+            let token = tokens::token_for(&id, env.as_deref());
+            let card = match token {
+                Some(_) => github::fetch_user(&id, env.as_deref())
+                    .await
+                    .map(|u| AccountCard {
+                        login: u.login.clone(),
+                        name: u.name.unwrap_or(u.login),
+                        avatar: u.avatar_url,
+                    })
+                    .or(Some(AccountCard {
+                        login: id.clone(),
+                        name: label_fallback.clone(),
+                        avatar: String::new(),
+                    })),
+                None => None,
+            };
+            (id, card)
+        }
+    });
+    let results = futures::future::join_all(futures).await;
+    let mut map: BTreeMap<String, Option<AccountCard>> = BTreeMap::new();
+    for (id, card) in results {
+        map.insert(id, card);
+    }
+    Ok(map)
 }
 
 #[tauri::command]
-async fn accounts() -> AccountsInfo {
-    let (rani, personal) = tokio::join!(
-        github::fetch_user("rani"),
-        github::fetch_user("personal"),
-    );
-    fn map(u: Option<github::GhUserInfo>) -> Option<AccountCard> {
-        u.map(|u| AccountCard {
-            login: u.login.clone(),
-            name: u.name.unwrap_or(u.login),
-            avatar: u.avatar_url,
-        })
-    }
-    AccountsInfo {
-        rani: map(rani),
-        personal: map(personal),
-    }
+async fn repos(
+    store: State<'_, ConfigStore>,
+) -> Result<BTreeMap<String, Vec<RepoInfo>>, String> {
+    let cfg = store.snapshot();
+    Ok(list_all_repos(&cfg).await)
 }
 
-#[tauri::command]
-async fn repos() -> BTreeMap<String, Vec<RepoInfo>> {
-    list_all_repos().await
-}
-
-fn guard_category(c: &str) -> Result<(), String> {
-    if !is_valid_category(c) {
+fn guard_category(cfg: &Config, c: &str) -> Result<(), String> {
+    if !is_valid_category(cfg, c) {
         return Err(format!("invalid category: {}", c));
     }
     Ok(())
@@ -82,13 +127,15 @@ fn guard_category(c: &str) -> Result<(), String> {
 
 #[tauri::command]
 async fn repo_info(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
 ) -> Result<RepoInfo, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
-    let info = get_repo_info(&category, sub.as_deref(), &name, &path).await;
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
     if info.branch.is_none() && info.last_commit.is_none() {
         return Err("not a git repo".into());
     }
@@ -97,97 +144,145 @@ async fn repo_info(
 
 #[tauri::command]
 async fn repo_prs(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
 ) -> Result<Vec<github::OpenPr>, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
-    let info = get_repo_info(&category, sub.as_deref(), &name, &path).await;
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
     let (Some(owner), Some(repo_name)) = (info.owner.as_deref(), info.repo_name.as_deref()) else {
         return Ok(Vec::new());
     };
-    Ok(github::fetch_open_prs(owner, repo_name, &info.account).await)
+    let env = cfg
+        .accounts
+        .iter()
+        .find(|a| a.id == info.account)
+        .and_then(|a| a.env_var.clone());
+    Ok(github::fetch_open_prs(owner, repo_name, &info.account, env.as_deref()).await)
 }
 
 #[tauri::command]
 async fn repo_meta(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
 ) -> Result<Option<github::RepoMeta>, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
-    let info = get_repo_info(&category, sub.as_deref(), &name, &path).await;
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
     let (Some(owner), Some(repo_name)) = (info.owner.as_deref(), info.repo_name.as_deref()) else {
         return Ok(None);
     };
-    Ok(github::fetch_repo_meta(owner, repo_name, &info.account).await)
+    let env = cfg
+        .accounts
+        .iter()
+        .find(|a| a.id == info.account)
+        .and_then(|a| a.env_var.clone());
+    Ok(github::fetch_repo_meta(owner, repo_name, &info.account, env.as_deref()).await)
 }
 
 #[tauri::command]
 async fn repo_log(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
     limit: Option<u32>,
 ) -> Result<Vec<serde_json::Value>, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
     Ok(git_ops::log_commits(&path, limit.unwrap_or(30)).await)
 }
 
 #[tauri::command]
 async fn repo_pull(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
 ) -> Result<git_ops::ActionResult, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
     Ok(git_ops::pull(&path).await)
 }
 
 #[tauri::command]
 async fn repo_fetch(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
 ) -> Result<git_ops::ActionResult, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
     Ok(git_ops::fetch(&path).await)
 }
 
 #[tauri::command]
 async fn repo_open(
+    store: State<'_, ConfigStore>,
     category: String,
     name: String,
     sub: Option<String>,
     ide: Option<String>,
 ) -> Result<git_ops::ActionResult, String> {
-    guard_category(&category)?;
-    let path = repo_path_for(&category, sub.as_deref(), &name);
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
     Ok(git_ops::open_in_ide(&path, ide.as_deref()).await)
 }
 
 #[tauri::command]
 async fn repo_clone(
+    store: State<'_, ConfigStore>,
     category: String,
     sub_category: Option<String>,
     owner_repo: String,
     target_name: Option<String>,
 ) -> Result<git_ops::ActionResult, String> {
-    if !is_valid_category(&category) {
+    let cfg = store.snapshot();
+    if !is_valid_category(&cfg, &category) {
         return Err(format!("invalid category: {}", category));
     }
     Ok(git_ops::clone_repo(
+        &cfg,
         &category,
         sub_category.as_deref(),
         &owner_repo,
         target_name.as_deref(),
     )
     .await)
+}
+
+/// Scan a directory and return its direct subfolder names (for auto-populating
+/// categories during onboarding).
+#[tauri::command]
+async fn list_subfolders(path: String) -> Vec<String> {
+    let Ok(mut rd) = tokio::fs::read_dir(&path).await else {
+        return Vec::new();
+    };
+    let mut names = Vec::new();
+    while let Ok(Some(entry)) = rd.next_entry().await {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        if let Ok(meta) = entry.metadata().await {
+            if meta.is_dir() {
+                names.push(name);
+            }
+        }
+    }
+    names.sort();
+    names
 }
 
 fn summarize(map: &BTreeMap<String, Vec<RepoInfo>>) -> (usize, usize, usize) {
@@ -229,14 +324,10 @@ fn show_main_window(app: &tauri::AppHandle) {
 
 fn hide_main_window(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
-        // Exit fullscreen first — on macOS, hiding from fullscreen orphans the
-        // webview layer and the window returns as a black rectangle.
         if win.is_fullscreen().unwrap_or(false) {
             let _ = win.set_fullscreen(false);
         }
     }
-    // App-level hide (⌘H) behaves better across spaces + fullscreen than
-    // per-window hide.
     #[cfg(target_os = "macos")]
     let _ = app.hide();
     #[cfg(not(target_os = "macos"))]
@@ -254,8 +345,6 @@ fn toggle_main_window(app: &tauri::AppHandle) {
         .get_webview_window("main")
         .and_then(|w| w.is_focused().ok())
         .unwrap_or(false);
-    // When the app is hidden via ⌘H the window still reports visible=true, so
-    // focus state is what we actually key off of.
     if visible && focused {
         hide_main_window(app);
     } else {
@@ -265,18 +354,37 @@ fn toggle_main_window(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load ~/.config/gh-tokens/*.env before anything that may need GitHub tokens.
-    tokens::load_token_files();
+    // Legacy env-based token files (~/.config/gh-tokens/*.env) get loaded so
+    // existing installs keep working until they migrate tokens to the keychain.
+    tokens::load_env_token_files();
+
+    let config_snapshot = config::load();
+    let store = ConfigStore::new(config_snapshot);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .manage(store)
+        .on_window_event(|win, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if win.label() == "main" {
+                    api.prevent_close();
+                    hide_main_window(&win.app_handle());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             health,
+            get_config,
+            save_config,
+            account_has_token,
+            set_account_token,
+            delete_account_token,
             accounts,
             repos,
             repo_info,
@@ -287,28 +395,21 @@ pub fn run() {
             repo_fetch,
             repo_open,
             repo_clone,
+            list_subfolders,
         ])
-        .on_window_event(|win, event| {
-            // Hide to tray instead of quitting when the user clicks the red close button.
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if win.label() == "main" {
-                    api.prevent_close();
-                    hide_main_window(&win.app_handle());
-                }
-            }
-        })
         .setup(|app| {
             let handle = app.handle().clone();
 
-            // Tray menu
             let show_item = MenuItem::with_id(app, "show", "Paneli göster", true, None::<&str>)?;
             let refresh_item =
                 MenuItem::with_id(app, "refresh", "Yeniden tara", true, None::<&str>)?;
+            let settings_item =
+                MenuItem::with_id(app, "settings", "Ayarlar…", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Çıkış", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&show_item, &refresh_item, &sep, &quit_item],
+                &[&show_item, &refresh_item, &settings_item, &sep, &quit_item],
             )?;
 
             let default_icon = app
@@ -327,6 +428,10 @@ pub fn run() {
                     "refresh" => {
                         let _ = app.emit("pb-panel://refresh", ());
                     }
+                    "settings" => {
+                        show_main_window(app);
+                        let _ = app.emit("pb-panel://open-settings", ());
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -342,13 +447,18 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Background scan loop: every 60s refresh tray tooltip + emit event
-            // the frontend can listen to. Keeps the dashboard fresh even when
-            // the window isn't focused.
             let loop_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
                 loop {
-                    let snapshot = list_all_repos().await;
+                    let cfg = loop_handle
+                        .state::<ConfigStore>()
+                        .snapshot();
+                    if cfg.categories.is_empty() {
+                        // No categories configured yet — sleep and retry.
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        continue;
+                    }
+                    let snapshot = list_all_repos(&cfg).await;
                     let (total, dirty, behind) = summarize(&snapshot);
                     if let Some(tray) = loop_handle.tray_by_id("main-tray") {
                         let _ = tray.set_tooltip(Some(&tray_tooltip(total, dirty, behind)));

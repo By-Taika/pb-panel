@@ -1,7 +1,32 @@
-export type Category = 'Rani' | 'CodeCrew' | 'KRN' | 'Fordevo' | 'ByTaika';
-export const CATEGORIES: Category[] = ['Rani', 'CodeCrew', 'KRN', 'Fordevo', 'ByTaika'];
+// Categories are now fully dynamic — the string is whatever the user named
+// their folder under baseDir, and comes from config.categories[].name.
+export type Category = string;
 
-export type Account = 'rani' | 'personal';
+// Account id, also dynamic — matches config.accounts[].id.
+export type Account = string;
+
+export interface AccountConfig {
+  id: string;
+  label: string;
+  username?: string | null;
+  /** Optional env var to fall back to when the keychain entry is missing. */
+  envVar?: string | null;
+}
+
+export interface CategoryConfig {
+  name: string;
+  accountId: string;
+  nested: boolean;
+  hide: string[];
+}
+
+export interface Config {
+  version: number;
+  baseDir: string;
+  accounts: AccountConfig[];
+  categories: CategoryConfig[];
+  firstRunComplete: boolean;
+}
 
 export interface RepoInfo {
   id: string;
@@ -28,10 +53,14 @@ export interface RepoInfo {
   hasUpstream: boolean;
 }
 
-export interface AccountsInfo {
-  rani: { login: string; name: string; avatar: string } | null;
-  personal: { login: string; name: string; avatar: string } | null;
+export interface AccountCard {
+  login: string;
+  name: string;
+  avatar: string;
 }
+
+/** Keyed by account id — same keys as Config.accounts[].id. */
+export type AccountsInfo = Record<string, AccountCard | null>;
 
 export interface RepoMeta {
   private: boolean;

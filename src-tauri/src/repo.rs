@@ -4,21 +4,25 @@ use std::process::Stdio;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-pub const CATEGORIES: &[&str] = &["Rani", "CodeCrew", "KRN", "Fordevo", "ByTaika"];
+use crate::config::{CategoryConfig, Config};
 
-pub fn account_for(category: &str) -> &'static str {
-    match category {
-        "Rani" => "rani",
-        _ => "personal",
-    }
+pub fn base_dir_from(cfg: &Config) -> PathBuf {
+    PathBuf::from(&cfg.base_dir)
 }
 
-pub fn base_dir() -> PathBuf {
-    dirs::home_dir().unwrap_or_default().join("ProjectBase")
+pub fn account_id_for(cfg: &Config, category: &str) -> Option<String> {
+    cfg.categories
+        .iter()
+        .find(|c| c.name == category)
+        .map(|c| c.account_id.clone())
 }
 
-pub fn repo_path_for(category: &str, sub: Option<&str>, name: &str) -> PathBuf {
-    let mut p = base_dir().join(category);
+pub fn find_category<'a>(cfg: &'a Config, name: &str) -> Option<&'a CategoryConfig> {
+    cfg.categories.iter().find(|c| c.name == name)
+}
+
+pub fn repo_path_for(cfg: &Config, category: &str, sub: Option<&str>, name: &str) -> PathBuf {
+    let mut p = base_dir_from(cfg).join(category);
     if let Some(s) = sub {
         if !s.is_empty() {
             p = p.join(s);
@@ -27,8 +31,8 @@ pub fn repo_path_for(category: &str, sub: Option<&str>, name: &str) -> PathBuf {
     p.join(name)
 }
 
-pub fn is_valid_category(cat: &str) -> bool {
-    CATEGORIES.iter().any(|c| *c == cat)
+pub fn is_valid_category(cfg: &Config, cat: &str) -> bool {
+    cfg.categories.iter().any(|c| c.name == cat)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -50,6 +54,8 @@ pub struct RepoInfo {
     pub sub_category: Option<String>,
     pub name: String,
     pub path: String,
+    /// Account id (matches Config.accounts[].id), or empty if the category has
+    /// no account mapping.
     pub account: String,
     pub branch: Option<String>,
     pub dirty: usize,
@@ -88,6 +94,7 @@ fn is_git_repo(p: &Path) -> bool {
 }
 
 pub async fn get_repo_info(
+    cfg: &Config,
     category: &str,
     sub: Option<&str>,
     name: &str,
@@ -150,7 +157,7 @@ pub async fn get_repo_info(
         sub_category: sub.map(|s| s.to_string()).filter(|s| !s.is_empty()),
         name: name.into(),
         path: repo_path.to_string_lossy().to_string(),
-        account: account_for(category).into(),
+        account: account_id_for(cfg, category).unwrap_or_default(),
         branch: if branch.is_empty() { None } else { Some(branch) },
         dirty,
         ahead,
@@ -163,11 +170,15 @@ pub async fn get_repo_info(
     }
 }
 
-pub async fn list_category_repos(category: &str) -> Vec<RepoInfo> {
-    let cat_dir = base_dir().join(category);
+pub async fn list_category_repos(cfg: &Config, cat: &CategoryConfig) -> Vec<RepoInfo> {
+    let cat_dir = base_dir_from(cfg).join(&cat.name);
     let Ok(mut rd) = tokio::fs::read_dir(&cat_dir).await else {
         return Vec::new();
     };
+
+    let hide = cat.hide.clone();
+    let cat_name = cat.name.clone();
+    let nested = cat.nested;
 
     let mut tasks = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
@@ -181,17 +192,26 @@ pub async fn list_category_repos(category: &str) -> Vec<RepoInfo> {
             continue;
         }
 
-        let category = category.to_string();
+        let cfg_clone = cfg.clone();
+        let cat_name = cat_name.clone();
+        let hide = hide.clone();
         tasks.push(tokio::spawn(async move {
             let mut infos: Vec<RepoInfo> = Vec::new();
-            // Case 1: entry itself is a repo
+
+            // Direct child repo
             if is_git_repo(&path) {
-                infos.push(
-                    get_repo_info(&category, None, &name, &path).await,
-                );
+                if !hide.contains(&name) {
+                    infos.push(
+                        get_repo_info(&cfg_clone, &cat_name, None, &name, &path).await,
+                    );
+                }
                 return infos;
             }
-            // Case 2: walk one level deeper — treat entry as a sub-category folder
+
+            // Sub-category descent (only if enabled on this category)
+            if !nested {
+                return infos;
+            }
             if let Ok(mut sub_rd) = tokio::fs::read_dir(&path).await {
                 while let Ok(Some(sub_entry)) = sub_rd.next_entry().await {
                     let sub_name = sub_entry.file_name().to_string_lossy().to_string();
@@ -203,9 +223,10 @@ pub async fn list_category_repos(category: &str) -> Vec<RepoInfo> {
                     if !sub_meta.is_dir() {
                         continue;
                     }
-                    if is_git_repo(&sub_path) {
+                    if is_git_repo(&sub_path) && !hide.contains(&sub_name) {
                         infos.push(
-                            get_repo_info(&category, Some(&name), &sub_name, &sub_path).await,
+                            get_repo_info(&cfg_clone, &cat_name, Some(&name), &sub_name, &sub_path)
+                                .await,
                         );
                     }
                 }
@@ -228,19 +249,21 @@ pub async fn list_category_repos(category: &str) -> Vec<RepoInfo> {
     all
 }
 
-pub async fn list_all_repos() -> std::collections::BTreeMap<String, Vec<RepoInfo>> {
+pub async fn list_all_repos(
+    cfg: &Config,
+) -> std::collections::BTreeMap<String, Vec<RepoInfo>> {
     let mut tasks = Vec::new();
-    for cat in CATEGORIES {
-        let c = cat.to_string();
+    for cat in cfg.categories.iter().cloned() {
+        let cfg_clone = cfg.clone();
         tasks.push(tokio::spawn(async move {
-            let infos = list_category_repos(&c).await;
-            (c, infos)
+            let infos = list_category_repos(&cfg_clone, &cat).await;
+            (cat.name, infos)
         }));
     }
     let mut map = std::collections::BTreeMap::new();
     for t in tasks {
-        if let Ok((c, infos)) = t.await {
-            map.insert(c, infos);
+        if let Ok((name, infos)) = t.await {
+            map.insert(name, infos);
         }
     }
     map

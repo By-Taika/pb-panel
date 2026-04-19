@@ -1,9 +1,40 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Category, RepoInfo, AccountsInfo, RepoMeta, OpenPr, Commit } from './types';
+import type {
+  AccountsInfo,
+  Category,
+  Commit,
+  Config,
+  OpenPr,
+  RepoInfo,
+  RepoMeta,
+} from './types';
 
 type ActionResult = { ok: boolean; output: string; path?: string };
 
 export const api = {
+  // --- Config ---
+  getConfig(): Promise<Config> {
+    return invoke<Config>('get_config');
+  },
+  saveConfig(cfg: Config): Promise<void> {
+    return invoke<void>('save_config', { cfg });
+  },
+  listSubfolders(path: string): Promise<string[]> {
+    return invoke<string[]>('list_subfolders', { path });
+  },
+
+  // --- Tokens (keychain) ---
+  accountHasToken(accountId: string): Promise<boolean> {
+    return invoke<boolean>('account_has_token', { accountId });
+  },
+  setAccountToken(accountId: string, token: string): Promise<void> {
+    return invoke<void>('set_account_token', { accountId, token });
+  },
+  deleteAccountToken(accountId: string): Promise<void> {
+    return invoke<void>('delete_account_token', { accountId });
+  },
+
+  // --- Dashboard data ---
   accounts(): Promise<AccountsInfo> {
     return invoke<AccountsInfo>('accounts');
   },
@@ -22,6 +53,8 @@ export const api = {
   repoLog(category: Category, name: string, sub?: string | null, limit = 30): Promise<Commit[]> {
     return invoke<Commit[]>('repo_log', { category, name, sub: sub ?? null, limit });
   },
+
+  // --- Actions ---
   pull(category: Category, name: string, sub?: string | null): Promise<ActionResult> {
     return invoke<ActionResult>('repo_pull', { category, name, sub: sub ?? null });
   },

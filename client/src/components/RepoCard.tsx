@@ -87,21 +87,21 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
           onClick={() => run('pull', () => api.pull(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'pull' ? '…' : '↓'} Pull
+          {busy === 'pull' ? <span className="spinner" /> : <span>↓</span>} Pull
         </button>
         <button
           className="btn-ghost"
           onClick={() => run('fetch', () => api.fetchRemote(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'fetch' ? '…' : '⟳'} Fetch
+          {busy === 'fetch' ? <span className="spinner" /> : <span>⟳</span>} Fetch
         </button>
         <button
           className="btn-ghost"
           onClick={() => run('open', () => api.openIde(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'open' ? '…' : '⎋'} Open
+          {busy === 'open' ? <span className="spinner" /> : <span>⎋</span>} Open
         </button>
         <button
           className="btn-ghost ml-auto"

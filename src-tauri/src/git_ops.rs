@@ -5,7 +5,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-use crate::repo::{account_for, base_dir, is_valid_category};
+use crate::config::{AccountConfig, Config};
+use crate::repo::{base_dir_from, find_category, is_valid_category};
 use crate::tokens::token_for;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -16,26 +17,25 @@ pub struct ActionResult {
     pub path: Option<String>,
 }
 
-fn git_user_for(account: &str) -> &'static str {
-    match account {
-        "rani" => "serhat-kiran",
-        _ => "By-Taika",
-    }
+fn find_account<'a>(cfg: &'a Config, id: &str) -> Option<&'a AccountConfig> {
+    cfg.accounts.iter().find(|a| a.id == id)
 }
 
-fn build_auth_url(owner: &str, repo: &str, account: &str) -> Result<String, String> {
-    let token = token_for(account).ok_or_else(|| {
+fn build_auth_url(
+    owner: &str,
+    repo: &str,
+    account: &AccountConfig,
+) -> Result<String, String> {
+    let token = token_for(&account.id, account.env_var.as_deref()).ok_or_else(|| {
         format!(
-            "Missing token for {}. Ensure ~/.config/gh-tokens/{}.env is sourced.",
-            account, account
+            "Missing token for '{}'. Configure it in Settings → Accounts.",
+            account.label
         )
     })?;
+    let username = account.username.as_deref().unwrap_or("git");
     Ok(format!(
         "https://{}:{}@github.com/{}/{}.git",
-        git_user_for(account),
-        token,
-        owner,
-        repo
+        username, token, owner, repo
     ))
 }
 
@@ -69,8 +69,8 @@ async fn run_git(cwd: Option<&Path>, args: &[&str]) -> ActionResult {
 }
 
 fn sanitize_token(s: &str) -> String {
-    let re = Regex::new(r"ghp_[A-Za-z0-9]+").unwrap();
-    re.replace_all(s, "ghp_***").to_string()
+    let re = Regex::new(r"ghp_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+").unwrap();
+    re.replace_all(s, "***").to_string()
 }
 
 pub async fn pull(repo_path: &Path) -> ActionResult {
@@ -117,12 +117,13 @@ pub async fn log_commits(repo_path: &Path, limit: u32) -> Vec<serde_json::Value>
 }
 
 pub async fn clone_repo(
+    cfg: &Config,
     category: &str,
     sub_category: Option<&str>,
     owner_repo: &str,
     target_name: Option<&str>,
 ) -> ActionResult {
-    if !is_valid_category(category) {
+    if !is_valid_category(cfg, category) {
         return ActionResult {
             ok: false,
             output: format!("Invalid category: {}", category),
@@ -147,13 +148,34 @@ pub async fn clone_repo(
     let owner = parts[0];
     let repo = parts[1];
 
-    let account = account_for(category);
+    let cat_cfg = find_category(cfg, category);
+    let Some(cat_cfg) = cat_cfg else {
+        return ActionResult {
+            ok: false,
+            output: format!("Category not found: {}", category),
+            path: None,
+        };
+    };
+    let account = match find_account(cfg, &cat_cfg.account_id) {
+        Some(a) => a,
+        None => {
+            return ActionResult {
+                ok: false,
+                output: format!(
+                    "Category '{}' maps to unknown account '{}'",
+                    category, cat_cfg.account_id
+                ),
+                path: None,
+            }
+        }
+    };
+
     let auth_url = match build_auth_url(owner, repo, account) {
         Ok(u) => u,
         Err(e) => return ActionResult { ok: false, output: e, path: None },
     };
 
-    let mut parent = base_dir().join(category);
+    let mut parent = base_dir_from(cfg).join(category);
     if let Some(s) = sub_category {
         if !s.trim().is_empty() {
             parent = parent.join(s.trim());
@@ -180,7 +202,6 @@ pub async fn clone_repo(
 
     match clone_res {
         Ok(o) if o.status.success() => {
-            // Clean token out of stored remote url
             let _ = Command::new("git")
                 .arg("-C")
                 .arg(&clone_path)
@@ -232,7 +253,6 @@ pub async fn open_in_ide(repo_path: &Path, ide_override: Option<&str>) -> Action
         return run_open(&["open", &path_str]).await;
     }
 
-    // Try the detected/preferred CLI tool first, else fall back to `open`.
     let primary = Command::new(&ide)
         .arg(&path_str)
         .stdout(Stdio::piped())
@@ -247,7 +267,6 @@ pub async fn open_in_ide(repo_path: &Path, ide_override: Option<&str>) -> Action
             path: None,
         },
         _ => {
-            // Fallback: Finder
             let fb = Command::new("open")
                 .arg(&path_str)
                 .stdout(Stdio::piped())

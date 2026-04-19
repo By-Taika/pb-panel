@@ -1,14 +1,13 @@
 use std::fs;
 use std::path::PathBuf;
 
-/// Loads environment variables from `~/.config/gh-tokens/*.env` into the process env.
-///
-/// Matches lines of the shell form:
-///   export GH_TOKEN_RANI="ghp_xxx"
-///   export GH_TOKEN_PERSONAL=ghp_xxx
-///
-/// Safe to call multiple times — never overwrites an already-set var.
-pub fn load_token_files() {
+const KEYCHAIN_SERVICE: &str = "com.codecrew.pbpanel";
+
+/// One-time migration helper: if a user already has GitHub tokens sitting in
+/// `~/.config/gh-tokens/*.env` (Serhat's original setup), pull those values
+/// into the process environment so existing Config entries that reference
+/// those env vars keep working until they're migrated to the keychain.
+pub fn load_env_token_files() {
     let Some(home) = dirs::home_dir() else { return };
     let dir: PathBuf = home.join(".config").join("gh-tokens");
     let Ok(entries) = fs::read_dir(&dir) else { return };
@@ -29,20 +28,60 @@ pub fn load_token_files() {
             let key = &cap[1];
             let val = cap[2].trim().trim_matches('"');
             if std::env::var_os(key).is_none() {
-                // SAFETY: Tauri runs single-threaded during initialization, before any async runtime
-                // or window creation. We also treat missing keys as the only write case, so no concurrent
-                // readers are observing the same key.
+                // SAFETY: called once during app startup, before any threads
+                // have spawned, so no concurrent readers observe this write.
                 unsafe { std::env::set_var(key, val) };
             }
         }
     }
 }
 
-pub fn token_for(account: &str) -> Option<String> {
-    let key = match account {
-        "rani" => "GH_TOKEN_RANI",
-        "personal" => "GH_TOKEN_PERSONAL",
-        _ => return None,
-    };
-    std::env::var(key).ok().filter(|v| !v.is_empty())
+/// Resolves a GitHub token for `account_id`.
+/// Order:
+///   1. macOS Keychain (preferred — set via Settings panel)
+///   2. Env var (if the account config names one — back-compat for users who
+///      still source `~/.config/gh-tokens/*.env`).
+pub fn token_for(account_id: &str, env_var: Option<&str>) -> Option<String> {
+    if let Some(t) = keychain_get(account_id) {
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    if let Some(key) = env_var {
+        if let Ok(v) = std::env::var(key) {
+            if !v.is_empty() {
+                return Some(v);
+            }
+        }
+    }
+    None
+}
+
+pub fn keychain_set(account_id: &str, token: &str) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, account_id)
+        .map_err(|e| format!("keychain open: {}", e))?;
+    entry
+        .set_password(token)
+        .map_err(|e| format!("keychain write: {}", e))
+}
+
+pub fn keychain_get(account_id: &str) -> Option<String> {
+    keyring::Entry::new(KEYCHAIN_SERVICE, account_id)
+        .ok()?
+        .get_password()
+        .ok()
+}
+
+pub fn keychain_delete(account_id: &str) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, account_id)
+        .map_err(|e| format!("keychain open: {}", e))?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!("keychain delete: {}", e)),
+    }
+}
+
+pub fn keychain_has(account_id: &str) -> bool {
+    keychain_get(account_id).is_some()
 }

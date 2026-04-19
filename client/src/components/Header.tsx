@@ -1,14 +1,24 @@
-import type { AccountsInfo } from '../lib/types';
+import type { AccountConfig, AccountsInfo } from '../lib/types';
 
 interface HeaderProps {
+  configuredAccounts: AccountConfig[];
   accounts: AccountsInfo | null;
   totalRepos: number;
   onRefresh: () => void;
   onClone: () => void;
+  onSettings: () => void;
   refreshing: boolean;
 }
 
-export function Header({ accounts, totalRepos, onRefresh, onClone, refreshing }: HeaderProps) {
+export function Header({
+  configuredAccounts,
+  accounts,
+  totalRepos,
+  onRefresh,
+  onClone,
+  onSettings,
+  refreshing,
+}: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 backdrop-blur-xl bg-panel-bg/80 border-b border-panel-border">
       <div className="px-6 py-3 flex items-center gap-4">
@@ -22,8 +32,14 @@ export function Header({ accounts, totalRepos, onRefresh, onClone, refreshing }:
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">
-          <AccountBadge label="Rani" info={accounts?.rani} tone="accent" />
-          <AccountBadge label="Personal" info={accounts?.personal} tone="accent2" />
+          {configuredAccounts.map((a, i) => (
+            <AccountBadge
+              key={a.id}
+              label={a.label}
+              info={accounts?.[a.id] ?? null}
+              tone={i % 2 === 0 ? 'accent' : 'accent2'}
+            />
+          ))}
         </div>
 
         <button onClick={onRefresh} className="btn-ghost" disabled={refreshing}>
@@ -34,10 +50,16 @@ export function Header({ accounts, totalRepos, onRefresh, onClone, refreshing }:
         <button onClick={onClone} className="btn-primary">
           <span>+</span> Clone
         </button>
+
+        <button onClick={onSettings} className="btn-ghost" title="Ayarlar">
+          ⚙
+        </button>
       </div>
     </header>
   );
 }
+
+type BadgeInfo = { login: string; name: string; avatar: string } | null;
 
 function AccountBadge({
   label,
@@ -45,10 +67,13 @@ function AccountBadge({
   tone,
 }: {
   label: string;
-  info: AccountsInfo['rani'];
+  info: BadgeInfo;
   tone: 'accent' | 'accent2';
 }) {
-  const color = tone === 'accent' ? 'text-panel-accent border-panel-accent/40' : 'text-panel-accent2 border-panel-accent2/40';
+  const color =
+    tone === 'accent'
+      ? 'text-panel-accent border-panel-accent/40'
+      : 'text-panel-accent2 border-panel-accent2/40';
   return (
     <div className={`chip ${color}`} title={info?.name || ''}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />

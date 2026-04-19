@@ -33,6 +33,15 @@
   .card {
     @apply bg-panel-surface border border-panel-border rounded-lg p-4 hover:border-panel-accent/50 hover:shadow-glow transition-all;
   }
+  .input {
+    @apply w-full px-2.5 py-1.5 text-xs rounded-md border border-panel-border bg-panel-surface text-panel-text placeholder:text-panel-muted focus:outline-none focus:border-panel-accent;
+  }
+  .spinner {
+    @apply inline-block h-3 w-3 rounded-full border-[1.5px] border-panel-muted border-t-panel-accent animate-spin;
+  }
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
 }
 
 /* Scrollbar */
