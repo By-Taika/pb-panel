@@ -249,8 +249,9 @@ pub async fn open_in_ide(repo_path: &Path, ide_override: Option<&str>) -> Action
 
     let path_str = repo_path.to_string_lossy().to_string();
 
+    // "finder" is the explicit "just open the folder in the OS file browser" path.
     if ide == "finder" {
-        return run_open(&["open", &path_str]).await;
+        return open_in_file_browser(&path_str).await;
     }
 
     let primary = Command::new(&ide)
@@ -267,44 +268,42 @@ pub async fn open_in_ide(repo_path: &Path, ide_override: Option<&str>) -> Action
             path: None,
         },
         _ => {
-            let fb = Command::new("open")
-                .arg(&path_str)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .output()
-                .await;
-            match fb {
-                Ok(o) if o.status.success() => ActionResult {
-                    ok: true,
-                    output: format!("fallback: opened in Finder ({} not found)", ide),
-                    path: None,
-                },
-                Ok(o) => ActionResult {
-                    ok: false,
-                    output: String::from_utf8_lossy(&o.stderr).to_string(),
-                    path: None,
-                },
-                Err(e) => ActionResult {
-                    ok: false,
-                    output: e.to_string(),
-                    path: None,
-                },
+            // IDE not available — fall back to the OS file browser so at least
+            // the user lands in the right folder.
+            let mut fb = open_in_file_browser(&path_str).await;
+            if fb.ok {
+                fb.output = format!("fallback: opened in file browser ({} not found)", ide);
             }
+            fb
         }
     }
 }
 
-async fn run_open(args: &[&str]) -> ActionResult {
-    let out = Command::new(args[0])
-        .args(&args[1..])
+async fn open_in_file_browser(path_str: &str) -> ActionResult {
+    let (program, args): (&str, Vec<&str>) = if cfg!(target_os = "macos") {
+        ("open", vec![path_str])
+    } else if cfg!(target_os = "windows") {
+        ("explorer.exe", vec![path_str])
+    } else {
+        ("xdg-open", vec![path_str])
+    };
+
+    let out = Command::new(program)
+        .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
         .await;
     match out {
+        // Windows' explorer.exe exits non-zero (1) even on success — treat spawn as success.
+        Ok(_) if cfg!(target_os = "windows") => ActionResult {
+            ok: true,
+            output: "opened in Explorer".into(),
+            path: None,
+        },
         Ok(o) if o.status.success() => ActionResult {
             ok: true,
-            output: "opened in Finder".into(),
+            output: "opened in file browser".into(),
             path: None,
         },
         Ok(o) => ActionResult {

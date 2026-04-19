@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            name: macos-arm64
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            name: macos-x64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x64
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: ${{ matrix.target }}
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target ${{ matrix.target }}
+          tagName: ${{ github.ref_name }}
+          releaseName: 'pb-panel ${{ github.ref_name }}'
+          releaseBody: |
+            ## pb-panel ${{ github.ref_name }}
+
+            ### İndir
+            - **macOS (Apple Silicon)**: `pb-panel_*_aarch64.dmg`
+            - **macOS (Intel)**: `pb-panel_*_x64.dmg`
+            - **Windows**: `pb-panel_*_x64_en-US.msi`
+
+            macOS: ilk açılışta Gatekeeper uyarısı çıkarsa sağ tık → Aç, ya da `xattr -d com.apple.quarantine /Applications/pb-panel.app`.
+
+            Windows: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".
+
+            Tüm değişiklikler: commits üzerinde tarih sırasıyla.
+          releaseDraft: true
+          prerelease: false
