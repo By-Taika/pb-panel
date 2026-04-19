@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { RepoInfo } from '../lib/types';
 import { api } from '../lib/api';
+import { RepoDrawer } from './RepoDrawer';
 
 interface RepoCardProps {
   repo: RepoInfo;
@@ -10,6 +11,7 @@ interface RepoCardProps {
 
 export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
 
   const run = async (label: string, fn: () => Promise<{ ok: boolean; output: string }>) => {
     setBusy(label);
@@ -101,7 +103,16 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
         >
           {busy === 'open' ? '…' : '⎋'} Open
         </button>
+        <button
+          className="btn-ghost ml-auto"
+          onClick={() => setShowDrawer(true)}
+          title="Geçmiş & PR'lar"
+        >
+          ⓘ
+        </button>
       </div>
+
+      {showDrawer && <RepoDrawer repo={repo} onClose={() => setShowDrawer(false)} />}
     </div>
   );
 }

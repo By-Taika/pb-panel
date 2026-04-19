@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { RepoCard } from './components/RepoCard';
@@ -47,8 +48,8 @@ export function App() {
     loadRepos();
   }, [loadAccounts, loadRepos]);
 
-  // Background auto-refresh: re-scan every 30s, but only while the tab is visible
-  // so we don't burn cycles when the panel is minimized/backgrounded.
+  // Background auto-refresh: re-scan every 30s, but only while the window is visible
+  // so we don't burn cycles when the panel is hidden to tray.
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState === 'visible') loadRepos();
@@ -59,6 +60,14 @@ export function App() {
     return () => {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [loadRepos]);
+
+  // Tray-menu "Yeniden tara" item fires this event.
+  useEffect(() => {
+    const unlisten = listen('pb-panel://refresh', () => loadRepos());
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
     };
   }, [loadRepos]);
 

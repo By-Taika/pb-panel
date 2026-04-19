@@ -51,3 +51,12 @@ export interface OpenPr {
   url: string;
   updated: string;
 }
+
+export interface Commit {
+  hash: string;
+  short: string;
+  subject: string;
+  author: string;
+  relativeTime: string;
+  timestamp: number;
+}

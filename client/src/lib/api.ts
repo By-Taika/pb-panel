@@ -1,56 +1,42 @@
-import type { Category, RepoInfo, AccountsInfo, RepoMeta, OpenPr } from './types';
+import { invoke } from '@tauri-apps/api/core';
+import type { Category, RepoInfo, AccountsInfo, RepoMeta, OpenPr, Commit } from './types';
 
-async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
-  return res.json();
-}
-
-function subQuery(sub?: string | null): string {
-  return sub ? `?sub=${encodeURIComponent(sub)}` : '';
-}
+type ActionResult = { ok: boolean; output: string; path?: string };
 
 export const api = {
-  async accounts(): Promise<AccountsInfo> {
-    return json(await fetch('/api/accounts'));
+  accounts(): Promise<AccountsInfo> {
+    return invoke<AccountsInfo>('accounts');
   },
-  async repos(): Promise<Record<Category, RepoInfo[]>> {
-    return json(await fetch('/api/repos'));
+  repos(): Promise<Record<Category, RepoInfo[]>> {
+    return invoke<Record<Category, RepoInfo[]>>('repos');
   },
-  async repoMeta(category: Category, name: string, sub?: string | null): Promise<RepoMeta | null> {
-    return json(await fetch(`/api/repo/${category}/${encodeURIComponent(name)}/meta${subQuery(sub)}`));
+  repoInfo(category: Category, name: string, sub?: string | null): Promise<RepoInfo> {
+    return invoke<RepoInfo>('repo_info', { category, name, sub: sub ?? null });
   },
-  async repoPrs(category: Category, name: string, sub?: string | null): Promise<OpenPr[]> {
-    return json(await fetch(`/api/repo/${category}/${encodeURIComponent(name)}/prs${subQuery(sub)}`));
+  repoMeta(category: Category, name: string, sub?: string | null): Promise<RepoMeta | null> {
+    return invoke<RepoMeta | null>('repo_meta', { category, name, sub: sub ?? null });
   },
-  async pull(category: Category, name: string, sub?: string | null) {
-    return json<{ ok: boolean; output: string }>(
-      await fetch(`/api/repo/${category}/${encodeURIComponent(name)}/pull${subQuery(sub)}`, { method: 'POST' })
-    );
+  repoPrs(category: Category, name: string, sub?: string | null): Promise<OpenPr[]> {
+    return invoke<OpenPr[]>('repo_prs', { category, name, sub: sub ?? null });
   },
-  async fetchRemote(category: Category, name: string, sub?: string | null) {
-    return json<{ ok: boolean; output: string }>(
-      await fetch(`/api/repo/${category}/${encodeURIComponent(name)}/fetch${subQuery(sub)}`, { method: 'POST' })
-    );
+  repoLog(category: Category, name: string, sub?: string | null, limit = 30): Promise<Commit[]> {
+    return invoke<Commit[]>('repo_log', { category, name, sub: sub ?? null, limit });
   },
-  async openIde(category: Category, name: string, sub?: string | null, ide?: string) {
-    return json<{ ok: boolean; output: string }>(
-      await fetch(`/api/repo/${category}/${encodeURIComponent(name)}/open${subQuery(sub)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ide }),
-      })
-    );
+  pull(category: Category, name: string, sub?: string | null): Promise<ActionResult> {
+    return invoke<ActionResult>('repo_pull', { category, name, sub: sub ?? null });
   },
-  async clone(category: Category, ownerRepo: string, targetName?: string, subCategory?: string) {
-    const res = await fetch('/api/clone', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, subCategory, ownerRepo, targetName }),
+  fetchRemote(category: Category, name: string, sub?: string | null): Promise<ActionResult> {
+    return invoke<ActionResult>('repo_fetch', { category, name, sub: sub ?? null });
+  },
+  openIde(category: Category, name: string, sub?: string | null, ide?: string): Promise<ActionResult> {
+    return invoke<ActionResult>('repo_open', { category, name, sub: sub ?? null, ide: ide ?? null });
+  },
+  clone(category: Category, ownerRepo: string, targetName?: string, subCategory?: string): Promise<ActionResult> {
+    return invoke<ActionResult>('repo_clone', {
+      category,
+      subCategory: subCategory ?? null,
+      ownerRepo,
+      targetName: targetName ?? null,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ output: res.statusText }));
-      throw new Error(err.output || 'clone failed');
-    }
-    return res.json() as Promise<{ ok: boolean; output: string; path?: string }>;
   },
 };

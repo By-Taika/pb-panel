@@ -1,33 +1,32 @@
 {
   "name": "pb-panel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Local dashboard for ProjectBase repos (dual GitHub identity)",
+  "description": "Local desktop dashboard for ProjectBase repos (dual GitHub identity)",
   "scripts": {
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "tsx watch server/index.ts",
-    "dev:client": "vite",
-    "build": "vite build && tsc -p server/tsconfig.json",
-    "start": "NODE_ENV=production tsx server/index.ts"
+    "dev": "vite",
+    "build": "vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
-    "@fastify/static": "^7.0.4",
-    "fastify": "^4.28.1"
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-autostart": "^2.0.0",
+    "@tauri-apps/plugin-notification": "^2.0.1",
+    "@tauri-apps/plugin-opener": "^2.2.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
+    "@tauri-apps/cli": "^2.1.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
-    "concurrently": "^9.0.1",
-    "pino-pretty": "^13.1.3",
     "postcss": "^8.4.47",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.14",
-    "tsx": "^4.19.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.9"
   }
