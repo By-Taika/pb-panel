@@ -217,18 +217,49 @@ fn tray_tooltip(total: usize, dirty: usize, behind: usize) -> String {
     parts.join(" · ")
 }
 
-fn toggle_main_window(app: &tauri::AppHandle) {
+fn show_main_window(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    let _ = app.show();
     if let Some(win) = app.get_webview_window("main") {
-        match win.is_visible() {
-            Ok(true) => {
-                let _ = win.hide();
-            }
-            _ => {
-                let _ = win.show();
-                let _ = win.set_focus();
-                let _ = win.unminimize();
-            }
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
+fn hide_main_window(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        // Exit fullscreen first — on macOS, hiding from fullscreen orphans the
+        // webview layer and the window returns as a black rectangle.
+        if win.is_fullscreen().unwrap_or(false) {
+            let _ = win.set_fullscreen(false);
         }
+    }
+    // App-level hide (⌘H) behaves better across spaces + fullscreen than
+    // per-window hide.
+    #[cfg(target_os = "macos")]
+    let _ = app.hide();
+    #[cfg(not(target_os = "macos"))]
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.hide();
+    }
+}
+
+fn toggle_main_window(app: &tauri::AppHandle) {
+    let visible = app
+        .get_webview_window("main")
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false);
+    let focused = app
+        .get_webview_window("main")
+        .and_then(|w| w.is_focused().ok())
+        .unwrap_or(false);
+    // When the app is hidden via ⌘H the window still reports visible=true, so
+    // focus state is what we actually key off of.
+    if visible && focused {
+        hide_main_window(app);
+    } else {
+        show_main_window(app);
     }
 }
 
@@ -262,7 +293,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if win.label() == "main" {
                     api.prevent_close();
-                    let _ = win.hide();
+                    hide_main_window(&win.app_handle());
                 }
             }
         })
@@ -287,12 +318,12 @@ pub fn run() {
 
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(default_icon)
-                .icon_as_template(true)
+                .icon_as_template(false)
                 .tooltip("pb-panel")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => toggle_main_window(app),
+                    "show" => show_main_window(app),
                     "refresh" => {
                         let _ = app.emit("pb-panel://refresh", ());
                     }
