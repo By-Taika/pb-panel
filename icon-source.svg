@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e2e"/>
+      <stop offset="55%" stop-color="#181825"/>
+      <stop offset="100%" stop-color="#0d0d15"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f38ba8"/>
+      <stop offset="100%" stop-color="#c8102e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#f38ba8" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f38ba8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Full bleed background — no SVG corner rounding; macOS applies its own mask -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- Subtle radial glow -->
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- Git branch diagram -->
+  <g fill="none" stroke="url(#red)" stroke-width="62" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Main trunk -->
+    <path d="M 360 232 L 360 792"/>
+    <!-- Feature branch (smooth curve out from trunk) -->
+    <path d="M 360 420 C 520 420 664 420 664 560"/>
+    <!-- Feature continues down -->
+    <path d="M 664 560 L 664 792"/>
+  </g>
+
+  <!-- Commit nodes -->
+  <g>
+    <circle cx="360" cy="232" r="86" fill="#cdd6f4"/>
+    <circle cx="360" cy="512" r="58" fill="#cdd6f4"/>
+    <circle cx="360" cy="792" r="86" fill="#cdd6f4"/>
+    <circle cx="664" cy="792" r="86" fill="#cdd6f4"/>
+  </g>
+
+  <!-- Inner dot on each node for a polished look -->
+  <g>
+    <circle cx="360" cy="232" r="34" fill="#11111b"/>
+    <circle cx="360" cy="512" r="22" fill="#11111b"/>
+    <circle cx="360" cy="792" r="34" fill="#11111b"/>
+    <circle cx="664" cy="792" r="34" fill="#11111b"/>
+  </g>
+</svg>
