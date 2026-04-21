@@ -52,9 +52,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Auto-updater imzalama (secret'ları repo settings → Secrets → Actions'a ekle):
-          # - TAURI_SIGNING_PRIVATE_KEY:  ~/.tauri/pb-panel.key içeriği (base64)
-          # - TAURI_SIGNING_PRIVATE_KEY_PASSWORD:  boş bırak (bizim key'de şifre yok) ya da kendi şifren
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -77,5 +74,86 @@ jobs:
             - **Windows**: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
-          updaterJsonPreferNsis: true
+
+      # tauri-action@v0 şu an .sig dosyalarını bulamayıp latest.json yüklemiyor
+      # ("Signature not found for the updater JSON" hatası). Biz o eksikleri
+      # manuel olarak tamamlıyoruz: bundle dizinindeki .tar.gz / .nsis.zip / .sig
+      # dosyalarını topla ve release'e ekle.
+      - name: Upload updater bundle + .sig (macOS)
+        if: matrix.platform == 'macos-14'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          for f in "$BUNDLE"/*.app.tar.gz "$BUNDLE"/*.app.tar.gz.sig; do
+            [ -f "$f" ] || continue
+            echo "Uploading $(basename "$f") to ${{ github.ref_name }}"
+            gh release upload "${{ github.ref_name }}" "$f" --clobber --repo "${{ github.repository }}"
+          done
+
+      - name: Upload updater bundle + .sig (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/nsis"
+          for f in "$BUNDLE"/*.nsis.zip "$BUNDLE"/*.nsis.zip.sig; do
+            [ -f "$f" ] || continue
+            echo "Uploading $(basename "$f") to ${{ github.ref_name }}"
+            gh release upload "${{ github.ref_name }}" "$f" --clobber --repo "${{ github.repository }}"
+          done
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and upload latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          REPO="${{ github.repository }}"
+
+          mkdir -p ./sigs
+          gh release download "$TAG" --pattern "*.sig" --dir ./sigs --repo "$REPO" || true
+
+          mac_sig_file=$(ls ./sigs/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
+          win_sig_file=$(ls ./sigs/*.nsis.zip.sig 2>/dev/null | head -1 || true)
+
+          mac_sig=""
+          win_sig=""
+          [ -n "$mac_sig_file" ] && mac_sig=$(cat "$mac_sig_file")
+          [ -n "$win_sig_file" ] && win_sig=$(cat "$win_sig_file")
+
+          mac_url="https://github.com/${REPO}/releases/download/${TAG}/pb-panel_aarch64.app.tar.gz"
+          win_url="https://github.com/${REPO}/releases/download/${TAG}/pb-panel_${VERSION}_x64-setup.nsis.zip"
+
+          cat > latest.json <<EOF
+          {
+            "version": "${VERSION}",
+            "notes": "pb-panel ${VERSION} — see CHANGELOG",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "${mac_sig}",
+                "url": "${mac_url}"
+              },
+              "windows-x86_64": {
+                "signature": "${win_sig}",
+                "url": "${win_url}"
+              }
+            }
+          }
+          EOF
+
+          echo "--- latest.json ---"
+          cat latest.json
+
+          gh release upload "$TAG" latest.json --clobber --repo "$REPO"

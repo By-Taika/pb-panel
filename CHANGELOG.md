@@ -2,6 +2,16 @@
 
 Bu dosya pb-panel'in her sürümünde neyin değiştiğini listeler. Format [Keep a Changelog](https://keepachangelog.com/) temelli, sürüm numaraları [SemVer](https://semver.org/).
 
+## [0.8.1] — 2026-04-21
+
+Auto-updater için gerekli `latest.json` manifest'i ve `.sig` imza dosyaları release'e yüklenmiyordu (`tauri-action@v0` "Signature not found" uyarısıyla skip ediyordu). Release workflow'una manuel upload step'leri ve ayrı bir `manifest` job'u eklendi.
+
+- macOS `.app.tar.gz` + `.sig` artık release'e yükleniyor
+- Windows `.nsis.zip` + `.sig` artık release'e yükleniyor
+- `latest.json` manifest'i cross-platform olarak toplanıp release'e yükleniyor
+
+v0.8.0 kullanıcıları bir defa elle v0.8.1'i indirip kurmalı. Sonraki sürümler auto-updater üzerinden otomatik gelecek.
+
 ## [0.8.0] — 2026-04-21
 
 pb-panel artık sadece "durum göster" değil, git workflow'unu panelden yürütmeye izin veren bir kokpit.
