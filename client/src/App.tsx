@@ -112,24 +112,37 @@ export function App() {
     ensureNotificationPermission();
   }, [config?.firstRunComplete]);
 
-  // Check for app updates on startup, then every 6 hours.
+  // Check for app updates on startup, then every 15 minutes. Also listens for
+  // an explicit trigger from the tray menu so you can force a check without
+  // waiting.
   useEffect(() => {
     if (!config?.firstRunComplete) return;
     let cancelled = false;
-    const runCheck = async () => {
+    const runCheck = async (manual = false) => {
       const res = await checkForUpdate();
       if (cancelled) return;
-      if (res.kind === 'available' && !updateDismissed) {
+      if (res.kind === 'available') {
         setPendingUpdate(res.update);
+        setUpdateDismissed(false); // bring the modal back even if previously dismissed
+      } else if (res.kind === 'none' && manual) {
+        toast('Güncelleme yok, en güncel sürüm kurulu.', true);
+      } else if (res.kind === 'error' && manual) {
+        toast(`Güncelleme kontrolü hatası: ${res.message}`, false);
       }
     };
-    runCheck();
-    const id = window.setInterval(runCheck, 6 * 60 * 60 * 1000);
+    // Initial check, then every minute thereafter. Checking latest.json is a
+    // cheap CDN fetch (releases asset redirect), not a GitHub API call, so
+    // rate limits don't apply — we can poll aggressively.
+    if (!updateDismissed) runCheck(false);
+    const id = window.setInterval(() => runCheck(false), 60 * 1000);
+    // Tray → "Check for updates" manual trigger.
+    const unlisten = listen('pb-panel://check-updates', () => runCheck(true));
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      unlisten.then((fn) => fn()).catch(() => {});
     };
-  }, [config?.firstRunComplete, updateDismissed]);
+  }, [config?.firstRunComplete, updateDismissed, toast]);
 
   // --- Gating states ---
   if (!config) {

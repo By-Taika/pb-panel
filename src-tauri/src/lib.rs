@@ -796,13 +796,20 @@ pub fn run() {
             let show_item = MenuItem::with_id(app, "show", "Paneli göster", true, None::<&str>)?;
             let refresh_item =
                 MenuItem::with_id(app, "refresh", "Yeniden tara", true, None::<&str>)?;
+            let check_updates_item = MenuItem::with_id(
+                app,
+                "check-updates",
+                "Güncelleme kontrol et",
+                true,
+                None::<&str>,
+            )?;
             let settings_item =
                 MenuItem::with_id(app, "settings", "Ayarlar…", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Çıkış", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&show_item, &refresh_item, &settings_item, &sep, &quit_item],
+                &[&show_item, &refresh_item, &check_updates_item, &settings_item, &sep, &quit_item],
             )?;
 
             let default_icon = app
@@ -820,6 +827,10 @@ pub fn run() {
                     "show" => show_main_window(app),
                     "refresh" => {
                         let _ = app.emit("pb-panel://refresh", ());
+                    }
+                    "check-updates" => {
+                        show_main_window(app);
+                        let _ = app.emit("pb-panel://check-updates", ());
                     }
                     "settings" => {
                         show_main_window(app);
