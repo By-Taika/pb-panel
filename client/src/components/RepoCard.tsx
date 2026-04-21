@@ -125,7 +125,14 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
         </button>
       </div>
 
-      {showDrawer && <RepoDrawer repo={repo} onClose={() => setShowDrawer(false)} />}
+      {showDrawer && (
+        <RepoDrawer
+          repo={repo}
+          onClose={() => setShowDrawer(false)}
+          onToast={onAction}
+          onRefresh={onRefresh}
+        />
+      )}
     </div>
   );
 }

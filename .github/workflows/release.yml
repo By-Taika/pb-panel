@@ -52,6 +52,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Auto-updater imzalama (secret'ları repo settings → Secrets → Actions'a ekle):
+          # - TAURI_SIGNING_PRIVATE_KEY:  ~/.tauri/pb-panel.key içeriği (base64)
+          # - TAURI_SIGNING_PRIVATE_KEY_PASSWORD:  boş bırak (bizim key'de şifre yok) ya da kendi şifren
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --target ${{ matrix.target }}
           tagName: ${{ github.ref_name }}
@@ -59,14 +64,18 @@ jobs:
           releaseBody: |
             ## pb-panel ${{ github.ref_name }}
 
+            Yeni sürüm. İçinde ne değiştiği için [CHANGELOG](../../blob/main/CHANGELOG.md) dosyasına bakabilirsin.
+
             ### İndir
             - **macOS (Apple Silicon)**: `pb-panel_*_aarch64.dmg`
             - **Windows**: `pb-panel_*_x64_en-US.msi`
 
-            macOS: ilk açılışta Gatekeeper uyarısı çıkarsa sağ tık → Aç, ya da `xattr -d com.apple.quarantine /Applications/pb-panel.app`.
+            Önceki sürümden güncelleme yapıyorsan panel kendi auto-updater'ı ile indirmeyi teklif edecek.
 
-            Windows: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".
-
-            Tüm değişiklikler: commits üzerinde tarih sırasıyla.
-          releaseDraft: true
+            ### Kurulum notları
+            - **macOS**: ilk açılışta Gatekeeper uyarısı çıkarsa sağ tık → Aç, ya da `xattr -d com.apple.quarantine /Applications/pb-panel.app`.
+            - **Windows**: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".
+          releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true

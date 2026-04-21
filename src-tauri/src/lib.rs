@@ -1,6 +1,9 @@
+mod branches;
 mod config;
+mod conflicts;
 mod github;
 mod git_ops;
+mod prs;
 mod repo;
 mod tokens;
 
@@ -262,6 +265,360 @@ async fn repo_clone(
     .await)
 }
 
+// ---------- Branch management ----------
+
+#[tauri::command]
+async fn repo_branches(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<Vec<branches::BranchInfo>, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::list_branches(&path).await)
+}
+
+#[tauri::command]
+async fn branch_checkout(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    branch: String,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::checkout_branch(&path, &branch).await)
+}
+
+#[tauri::command]
+async fn branch_create(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    branch: String,
+    checkout: Option<bool>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::create_branch(&path, &branch, checkout.unwrap_or(true)).await)
+}
+
+#[tauri::command]
+async fn branch_delete(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    branch: String,
+    force: Option<bool>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::delete_branch(&path, &branch, force.unwrap_or(false)).await)
+}
+
+#[tauri::command]
+async fn branch_push(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    branch: String,
+    set_upstream: Option<bool>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::push_branch(&path, &branch, set_upstream.unwrap_or(false)).await)
+}
+
+#[tauri::command]
+async fn repo_stashes(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<Vec<branches::StashEntry>, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::list_stashes(&path).await)
+}
+
+#[tauri::command]
+async fn stash_save(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    message: Option<String>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::stash_save(&path, message.as_deref()).await)
+}
+
+#[tauri::command]
+async fn stash_pop(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    index: u32,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::stash_pop(&path, index).await)
+}
+
+#[tauri::command]
+async fn stash_drop(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    index: u32,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(branches::stash_drop(&path, index).await)
+}
+
+// ---------- Conflict handling ----------
+
+#[tauri::command]
+async fn repo_conflicts(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<conflicts::ConflictState, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::detect(&path).await)
+}
+
+#[tauri::command]
+async fn conflict_diff(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    file: String,
+) -> Result<String, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::get_diff(&path, &file).await)
+}
+
+#[tauri::command]
+async fn conflict_resolve_ours(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    file: String,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::resolve_ours(&path, &file).await)
+}
+
+#[tauri::command]
+async fn conflict_resolve_theirs(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    file: String,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::resolve_theirs(&path, &file).await)
+}
+
+#[tauri::command]
+async fn conflict_abort(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::abort_merge(&path).await)
+}
+
+#[tauri::command]
+async fn conflict_continue(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(conflicts::continue_merge(&path).await)
+}
+
+// ---------- PR management (GitHub API) ----------
+
+fn env_for_account(cfg: &Config, account_id: &str) -> Option<String> {
+    cfg.accounts
+        .iter()
+        .find(|a| a.id == account_id)
+        .and_then(|a| a.env_var.clone())
+}
+
+#[tauri::command]
+async fn pr_detail(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    number: u32,
+) -> Result<prs::PrDetail, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
+    let (owner, repo_name) = match (info.owner.as_deref(), info.repo_name.as_deref()) {
+        (Some(o), Some(r)) => (o, r),
+        _ => return Err("owner/repo çözülemedi".into()),
+    };
+    let env = env_for_account(&cfg, &info.account);
+    prs::get_pr_detail(owner, repo_name, number, &info.account, env.as_deref()).await
+}
+
+#[tauri::command]
+async fn pr_create(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    head: String,
+    base: String,
+    title: String,
+    body: Option<String>,
+    draft: Option<bool>,
+) -> Result<prs::PrDetail, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
+    let (owner, repo_name) = match (info.owner.as_deref(), info.repo_name.as_deref()) {
+        (Some(o), Some(r)) => (o, r),
+        _ => return Err("owner/repo çözülemedi".into()),
+    };
+    let env = env_for_account(&cfg, &info.account);
+    prs::create_pr(
+        owner,
+        repo_name,
+        &head,
+        &base,
+        &title,
+        body.as_deref(),
+        draft.unwrap_or(false),
+        &info.account,
+        env.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn pr_merge(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    number: u32,
+    method: Option<String>,
+) -> Result<String, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
+    let (owner, repo_name) = match (info.owner.as_deref(), info.repo_name.as_deref()) {
+        (Some(o), Some(r)) => (o, r),
+        _ => return Err("owner/repo çözülemedi".into()),
+    };
+    let env = env_for_account(&cfg, &info.account);
+    prs::merge_pr(
+        owner,
+        repo_name,
+        number,
+        method.as_deref().unwrap_or("squash"),
+        &info.account,
+        env.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn pr_enable_auto_merge(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    number: u32,
+    method: Option<String>,
+) -> Result<String, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
+    let (owner, repo_name) = match (info.owner.as_deref(), info.repo_name.as_deref()) {
+        (Some(o), Some(r)) => (o, r),
+        _ => return Err("owner/repo çözülemedi".into()),
+    };
+    let env = env_for_account(&cfg, &info.account);
+    prs::enable_auto_merge(
+        owner,
+        repo_name,
+        number,
+        method.as_deref().unwrap_or("squash"),
+        &info.account,
+        env.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn pr_disable_auto_merge(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+    number: u32,
+) -> Result<String, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    let info = get_repo_info(&cfg, &category, sub.as_deref(), &name, &path).await;
+    let (owner, repo_name) = match (info.owner.as_deref(), info.repo_name.as_deref()) {
+        (Some(o), Some(r)) => (o, r),
+        _ => return Err("owner/repo çözülemedi".into()),
+    };
+    let env = env_for_account(&cfg, &info.account);
+    prs::disable_auto_merge(owner, repo_name, number, &info.account, env.as_deref()).await
+}
+
 /// Scan a directory and return its direct subfolder names (for auto-populating
 /// categories during onboarding).
 #[tauri::command]
@@ -365,6 +722,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -396,6 +755,26 @@ pub fn run() {
             repo_open,
             repo_clone,
             list_subfolders,
+            repo_branches,
+            branch_checkout,
+            branch_create,
+            branch_delete,
+            branch_push,
+            repo_stashes,
+            stash_save,
+            stash_pop,
+            stash_drop,
+            repo_conflicts,
+            conflict_diff,
+            conflict_resolve_ours,
+            conflict_resolve_theirs,
+            conflict_abort,
+            conflict_continue,
+            pr_detail,
+            pr_create,
+            pr_merge,
+            pr_enable_auto_merge,
+            pr_disable_auto_merge,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

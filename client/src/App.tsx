@@ -1,12 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import type { Update } from '@tauri-apps/plugin-updater';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { RepoCard } from './components/RepoCard';
 import { CloneDialog } from './components/CloneDialog';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ToastStack } from './components/Toast';
+import { UpdateModal } from './components/UpdateModal';
 import { api } from './lib/api';
+import { diffAndNotify, ensureNotificationPermission } from './lib/notifications';
+import { checkForUpdate } from './lib/updater';
 import type { AccountsInfo, Category, Config, RepoInfo } from './lib/types';
 
 type Toast = { id: number; msg: string; ok: boolean };
@@ -21,6 +25,9 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState<0 | 1 | 2>(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+  const previousRepos = useRef<Record<Category, RepoInfo[]> | null>(null);
 
   const toast = useCallback((msg: string, ok: boolean) => {
     const id = Date.now() + Math.random();
@@ -38,6 +45,10 @@ export function App() {
     setRefreshing(true);
     try {
       const data = await api.repos();
+      // Diff against the last snapshot so the user gets a native notification
+      // for meaningful state changes (new behind commits, new dirty files).
+      diffAndNotify(previousRepos.current, data);
+      previousRepos.current = data;
       setRepos(data);
     } catch (e: any) {
       toast(`Load error: ${e.message}`, false);
@@ -92,6 +103,31 @@ export function App() {
       offs.forEach((p) => p.then((fn) => fn()).catch(() => {}));
     };
   }, [loadRepos]);
+
+  // Ask for notification permission once first-run is complete.
+  useEffect(() => {
+    if (!config?.firstRunComplete) return;
+    ensureNotificationPermission();
+  }, [config?.firstRunComplete]);
+
+  // Check for app updates on startup, then every 6 hours.
+  useEffect(() => {
+    if (!config?.firstRunComplete) return;
+    let cancelled = false;
+    const runCheck = async () => {
+      const res = await checkForUpdate();
+      if (cancelled) return;
+      if (res.kind === 'available' && !updateDismissed) {
+        setPendingUpdate(res.update);
+      }
+    };
+    runCheck();
+    const id = window.setInterval(runCheck, 6 * 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [config?.firstRunComplete, updateDismissed]);
 
   // --- Gating states ---
   if (!config) {
@@ -241,6 +277,16 @@ export function App() {
             setShowSettings(false);
           }}
           onToast={toast}
+        />
+      )}
+
+      {pendingUpdate && (
+        <UpdateModal
+          update={pendingUpdate}
+          onDismiss={() => {
+            setPendingUpdate(null);
+            setUpdateDismissed(true);
+          }}
         />
       )}
 

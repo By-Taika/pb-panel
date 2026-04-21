@@ -94,3 +94,48 @@ export interface Commit {
   relativeTime: string;
   timestamp: number;
 }
+
+export interface BranchInfo {
+  name: string;
+  isCurrent: boolean;
+  isRemote: boolean;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  lastCommitSubject: string | null;
+  lastCommitRelative: string | null;
+}
+
+export interface StashEntry {
+  index: number;
+  message: string;
+  relativeTime: string;
+}
+
+export interface ConflictFile {
+  path: string;
+  statusCode: string;
+}
+
+export interface ConflictState {
+  inMerge: boolean;
+  inRebase: boolean;
+  files: ConflictFile[];
+}
+
+export interface PrDetail {
+  number: number;
+  title: string;
+  body: string | null;
+  draft: boolean;
+  url: string;
+  mergeable: boolean | null;
+  mergeableState: string | null;
+  autoMergeEnabled: boolean;
+  headRef: string;
+  baseRef: string;
+  author: string;
+  updated: string;
+}
+
+export type MergeMethod = 'merge' | 'squash' | 'rebase';

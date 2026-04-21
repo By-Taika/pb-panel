@@ -11,6 +11,8 @@
     "notification:default",
     "autostart:default",
     "dialog:default",
+    "updater:default",
+    "process:default",
     {
       "identifier": "opener:allow-open-url",
       "allow": [
