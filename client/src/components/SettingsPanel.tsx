@@ -266,6 +266,11 @@ function GeneralTab({
   setCfg: (f: (c: Config) => Config) => void;
   pickBaseDir: () => void;
 }) {
+  const [configPath, setConfigPath] = useState<string>('');
+  useEffect(() => {
+    api.health().then((h) => setConfigPath(h.configPath)).catch(() => {});
+  }, []);
+
   return (
     <section className="space-y-5 max-w-2xl">
       <Field
@@ -284,9 +289,11 @@ function GeneralTab({
           </button>
         </div>
       </Field>
-      <div className="text-[11px] text-panel-muted">
-        Config dosyası: <span className="font-mono">~/Library/Application Support/com.codecrew.pbpanel/config.json</span>
-      </div>
+      {configPath && (
+        <div className="text-[11px] text-panel-muted">
+          Config dosyası: <span className="font-mono">{configPath}</span>
+        </div>
+      )}
     </section>
   );
 }

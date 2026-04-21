@@ -51,6 +51,11 @@ export interface RepoInfo {
   owner: string | null;
   repoName: string | null;
   hasUpstream: boolean;
+  /** Null means the remote-update check couldn't run (offline, auth, no
+   *  remote). Zero means everything is in sync; >0 is the count of branches
+   *  that have new commits on the remote since the last local fetch. */
+  remoteUpdates: number | null;
+  updatedBranches: string[];
 }
 
 export interface AccountCard {

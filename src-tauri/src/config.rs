@@ -10,14 +10,14 @@ pub const CONFIG_VERSION: u32 = 1;
 pub struct AccountConfig {
     /// Stable id used in category mapping and keychain lookup.
     pub id: String,
-    /// Friendly label shown in the UI (e.g. "Rani Company", "Personal").
+    /// Friendly label shown in the UI (e.g. "Work", "Personal").
     pub label: String,
     /// GitHub username for the account — used when building auth URLs for cloning.
     #[serde(default)]
     pub username: Option<String>,
     /// Env var name that historically held the token (optional — only used as a
-    /// fallback when the keychain entry is missing; lets existing
-    /// ~/.config/gh-tokens/*.env setups keep working).
+    /// fallback when the keychain entry is missing, so env-var based setups
+    /// keep working during the transition to keychain-backed tokens).
     #[serde(default)]
     pub env_var: Option<String>,
 }
@@ -25,7 +25,7 @@ pub struct AccountConfig {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CategoryConfig {
-    /// Folder name under `baseDir` (e.g. "CodeCrew").
+    /// Folder name under `baseDir` (e.g. "work", "personal").
     pub name: String,
     /// Account id this category maps to.
     pub account_id: String,
@@ -95,78 +95,9 @@ pub fn load() -> Config {
             return c;
         }
     }
-    // No valid config on disk — seed with a best-guess from the user's
-    // existing environment so the onboarding wizard isn't a blank canvas.
-    seed_from_legacy()
-}
-
-/// Pre-fills a Config from the pb-panel 0.1 layout (Fastify server, hardcoded
-/// categories, ~/.config/gh-tokens/*.env for tokens). If the user never had
-/// that setup the seed is still a reasonable default: baseDir = ~/ProjectBase,
-/// empty accounts/categories. The wizard is shown either way.
-fn seed_from_legacy() -> Config {
-    let base = default_base_dir();
-    let has_base = std::path::Path::new(&base).is_dir();
-    let rani_env = std::env::var("GH_TOKEN_RANI").is_ok();
-    let personal_env = std::env::var("GH_TOKEN_PERSONAL").is_ok();
-
-    if !has_base || (!rani_env && !personal_env) {
-        return Config::default();
-    }
-
-    let mut accounts = Vec::new();
-    if rani_env {
-        accounts.push(AccountConfig {
-            id: "rani".into(),
-            label: "Rani (company)".into(),
-            username: Some("serhat-kiran".into()),
-            env_var: Some("GH_TOKEN_RANI".into()),
-        });
-    }
-    if personal_env {
-        accounts.push(AccountConfig {
-            id: "personal".into(),
-            label: "Personal".into(),
-            username: Some("By-Taika".into()),
-            env_var: Some("GH_TOKEN_PERSONAL".into()),
-        });
-    }
-
-    // Detect which legacy category folders actually exist on disk and map them
-    // to whichever account is available.
-    let fallback_account = accounts.first().map(|a| a.id.clone()).unwrap_or_default();
-    let mut categories = Vec::new();
-    for (name, preferred) in [
-        ("Rani", "rani"),
-        ("CodeCrew", "personal"),
-        ("KRN", "personal"),
-        ("Fordevo", "personal"),
-        ("ByTaika", "personal"),
-    ] {
-        let p = std::path::Path::new(&base).join(name);
-        if !p.is_dir() {
-            continue;
-        }
-        let account_id = if accounts.iter().any(|a| a.id == preferred) {
-            preferred.to_string()
-        } else {
-            fallback_account.clone()
-        };
-        categories.push(CategoryConfig {
-            name: name.into(),
-            account_id,
-            nested: true,
-            hide: Vec::new(),
-        });
-    }
-
-    Config {
-        version: CONFIG_VERSION,
-        base_dir: base,
-        accounts,
-        categories,
-        first_run_complete: false,
-    }
+    // No valid config on disk — hand back a bare default; the onboarding
+    // wizard walks the user through filling it in.
+    Config::default()
 }
 
 pub fn save(cfg: &Config) -> Result<(), String> {

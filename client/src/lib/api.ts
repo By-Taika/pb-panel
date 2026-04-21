@@ -19,6 +19,9 @@ export const api = {
   saveConfig(cfg: Config): Promise<void> {
     return invoke<void>('save_config', { cfg });
   },
+  health(): Promise<{ ok: boolean; configPath: string; version: number }> {
+    return invoke<{ ok: boolean; configPath: string; version: number }>('health');
+  },
   listSubfolders(path: string): Promise<string[]> {
     return invoke<string[]>('list_subfolders', { path });
   },

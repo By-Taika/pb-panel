@@ -26,10 +26,15 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
     }
   };
 
-  const accountTone =
-    repo.account === 'rani'
+  // Stable per-account tone: hash the account id so each account gets a
+  // consistent colour across renders without hardcoding any account name.
+  const accountTone = (() => {
+    let h = 0;
+    for (let i = 0; i < repo.account.length; i++) h = (h * 31 + repo.account.charCodeAt(i)) | 0;
+    return (h & 1) === 0
       ? 'text-panel-accent border-panel-accent/40'
       : 'text-panel-accent2 border-panel-accent2/40';
+  })();
 
   return (
     <div className="card group">
@@ -66,6 +71,14 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
         {repo.behind > 0 && <span className="chip border-panel-danger/40 text-panel-danger">↓ {repo.behind}</span>}
         {!repo.hasUpstream && repo.branch && (
           <span className="chip border-panel-border text-panel-muted">no upstream</span>
+        )}
+        {repo.remoteUpdates != null && repo.remoteUpdates > 0 && (
+          <span
+            className="chip border-panel-accent/40 text-panel-accent"
+            title={`Remote'da yeni commit var (fetch edilmedi):\n${repo.updatedBranches.join('\n')}`}
+          >
+            ↯ {repo.remoteUpdates} update
+          </span>
         )}
       </div>
 

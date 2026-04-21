@@ -34,9 +34,9 @@
     "active": true,
     "targets": ["app", "dmg", "msi", "nsis"],
     "category": "DeveloperTool",
-    "copyright": "© 2026 CodeCrew",
-    "shortDescription": "ProjectBase local dashboard",
-    "longDescription": "Local desktop dashboard for managing ProjectBase git repos across dual GitHub identities.",
+    "copyright": "© 2026 pb-panel contributors",
+    "shortDescription": "Local git repo dashboard",
+    "longDescription": "A lightweight desktop dashboard for managing local git repos across multiple GitHub identities.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

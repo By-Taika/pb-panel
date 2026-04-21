@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 const KEYCHAIN_SERVICE: &str = "com.codecrew.pbpanel";
 
-/// One-time migration helper: if a user already has GitHub tokens sitting in
-/// `~/.config/gh-tokens/*.env` (Serhat's original setup), pull those values
-/// into the process environment so existing Config entries that reference
-/// those env vars keep working until they're migrated to the keychain.
+/// Back-compat shim: if the user has GitHub tokens sitting in
+/// `~/.config/gh-tokens/*.env` (the pre-keychain layout), pull them into the
+/// process environment so account configs that still reference those env vars
+/// keep working until they're migrated to the keychain.
 pub fn load_env_token_files() {
     let Some(home) = dirs::home_dir() else { return };
     let dir: PathBuf = home.join(".config").join("gh-tokens");

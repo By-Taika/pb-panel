@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
@@ -66,6 +67,13 @@ pub struct RepoInfo {
     pub owner: Option<String>,
     pub repo_name: Option<String>,
     pub has_upstream: bool,
+    /// Number of branches whose remote SHA differs from the last cached
+    /// remote-tracking ref — i.e. pushes that happened since the last local
+    /// fetch. Zero means up-to-date, `None` means the check was skipped or
+    /// failed (no remote / offline / auth issue).
+    pub remote_updates: Option<u32>,
+    /// Names of the branches flagged above. Useful as a tooltip in the UI.
+    pub updated_branches: Vec<String>,
 }
 
 pub async fn git(cwd: &Path, args: &[&str]) -> String {
@@ -81,6 +89,77 @@ pub async fn git(cwd: &Path, args: &[&str]) -> String {
         Ok(o) => String::from_utf8_lossy(&o.stdout).trim_end().to_string(),
         Err(_) => String::new(),
     }
+}
+
+/// Check whether the remote has any branches with commits newer than what's
+/// cached locally in `refs/remotes/origin/*`. Uses `ls-remote` (metadata only —
+/// no objects downloaded), so it's much cheaper than a full fetch.
+///
+/// Returns `(count, branch_names)`. If the check fails (no remote, offline,
+/// auth prompt) returns `None` so the UI can distinguish "up to date" from
+/// "couldn't check".
+async fn check_remote_updates(repo_path: &Path) -> Option<(u32, Vec<String>)> {
+    // Force non-interactive: if creds aren't cached we'd rather fail than
+    // hang the panel on a password prompt.
+    let ls = Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .args(["ls-remote", "--heads", "origin"])
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_ASKPASS", "/usr/bin/true")
+        .env("SSH_ASKPASS", "/usr/bin/true")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .await
+        .ok()?;
+    if !ls.status.success() {
+        return None;
+    }
+    let ls_text = String::from_utf8_lossy(&ls.stdout);
+
+    let mut remote: HashMap<String, String> = HashMap::new();
+    for line in ls_text.lines() {
+        let mut parts = line.split_whitespace();
+        let sha = parts.next()?.to_string();
+        let refname = parts.next()?;
+        if let Some(branch) = refname.strip_prefix("refs/heads/") {
+            remote.insert(branch.to_string(), sha);
+        }
+    }
+    if remote.is_empty() {
+        return Some((0, Vec::new()));
+    }
+
+    let cached = git(
+        repo_path,
+        &[
+            "for-each-ref",
+            "--format=%(refname)\x1f%(objectname)",
+            "refs/remotes/origin/",
+        ],
+    )
+    .await;
+    let mut local: HashMap<String, String> = HashMap::new();
+    for line in cached.lines() {
+        let mut it = line.split('\x1f');
+        let refname = it.next()?;
+        let sha = it.next()?;
+        if let Some(branch) = refname.strip_prefix("refs/remotes/origin/") {
+            if branch == "HEAD" {
+                continue;
+            }
+            local.insert(branch.to_string(), sha.to_string());
+        }
+    }
+
+    let mut changed: Vec<String> = remote
+        .iter()
+        .filter(|(b, sha)| local.get(*b).map(|l| l != *sha).unwrap_or(true))
+        .map(|(b, _)| b.clone())
+        .collect();
+    changed.sort();
+    Some((changed.len() as u32, changed))
 }
 
 fn parse_github_remote(url: &str) -> Option<(String, String)> {
@@ -100,12 +179,13 @@ pub async fn get_repo_info(
     name: &str,
     repo_path: &Path,
 ) -> RepoInfo {
-    let (branch, status, ahead_behind, last_raw, remote) = tokio::join!(
+    let (branch, status, ahead_behind, last_raw, remote, remote_update_check) = tokio::join!(
         git(repo_path, &["branch", "--show-current"]),
         git(repo_path, &["status", "--porcelain"]),
         git(repo_path, &["rev-list", "--left-right", "--count", "@{u}...HEAD"]),
         git(repo_path, &["log", "-1", "--pretty=format:%H\x1f%h\x1f%s\x1f%an\x1f%cr\x1f%ct"]),
         git(repo_path, &["config", "--get", "remote.origin.url"]),
+        check_remote_updates(repo_path),
     );
 
     let dirty = if status.is_empty() {
@@ -167,6 +247,8 @@ pub async fn get_repo_info(
         owner: gh.as_ref().map(|(o, _)| o.clone()),
         repo_name: gh.as_ref().map(|(_, r)| r.clone()),
         has_upstream,
+        remote_updates: remote_update_check.as_ref().map(|(n, _)| *n),
+        updated_branches: remote_update_check.map(|(_, b)| b).unwrap_or_default(),
     }
 }
 

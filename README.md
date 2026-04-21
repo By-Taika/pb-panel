@@ -1,7 +1,6 @@
 # pb-panel
 
-**Yerel makinendeki git repolarını tek bakışta yöneten hafif bir masaüstü paneli.**
-Birden fazla GitHub kimliğiyle (kişisel, şirket, org) çalışan geliştiriciler için.
+**A lightweight desktop dashboard for managing local git repos across multiple GitHub identities.**
 
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
@@ -9,117 +8,122 @@ Birden fazla GitHub kimliğiyle (kişisel, şirket, org) çalışan geliştirici
 
 ---
 
-## Bu ne işe yarar?
+## What it does
 
-Bir klasörün (`~/Projects`, `~/Dev` gibi) altında düzinelerce git reposu tutuyor musun?
-Hangisi dirty, hangisi behind origin, hangi branch'tesin, son commit ne zamandı… terminal açıp `git status; git log -1` yazmak yerine **hepsine aynı anda göz at, tek tıkla pull et, VS Code'da / IntelliJ'de aç.**
+If you keep dozens of git repos under a single folder (`~/Projects`, `~/Dev`, `~/ProjectBase`), pb-panel gives you a single place to see which ones are dirty, which are behind origin, which branch you're on, and when the last commit landed — instead of opening a terminal in each one.
 
-pb-panel bu iş için native bir macOS/Windows uygulaması:
+It's a native macOS/Windows app (Tauri v2 — no Electron, no background server):
 
-- 🔍 **Tara** — seçtiğin base klasörün altındaki tüm repoları otomatik bulur (1-2 seviye derinlik)
-- 📊 **Durum** — branch · dirty file sayısı · ahead/behind origin · son commit (yazar + süre)
-- ⬇️ **Toplu pull** — behind olanları tek tıkla günceller
-- 🪶 **Menubar tray** — pencere kapalıyken de dirty/behind sayısını gösterir
-- 🐙 **GitHub entegrasyonu** — açık PR'lar + repo meta (stars, issues, default branch, pushed_at)
-- 📜 **Commit geçmişi** — her repo için son 30 commit'i drawer'da
-- ⚡ **Clone** — panel içinden `owner/repo` yaz, doğru hesabın token'ıyla clone eder
-- 🔐 **Keychain** — token'lar düz dosyada değil, macOS Keychain'de (Windows'ta Credential Manager)
-- 🏢 **Çoklu hesap** — kaç GitHub kimliğin varsa tanımla; her kategori bir hesaba bağlı
+- **Scan** — every git repo under your chosen base folder, up to one level of sub-folders
+- **Status at a glance** — branch · dirty files · ahead/behind origin · last commit (author + relative time)
+- **Remote update hints** — checks `git ls-remote` across all branches without downloading objects, and flags repos where the remote has commits newer than your last fetch
+- **Bulk pull** — pull any repo that's behind with one click
+- **Menubar tray** — see dirty/behind counts at a glance even when the window is closed
+- **GitHub integration** — open PRs, repo metadata (stars, issues, default branch, `pushed_at`)
+- **Commit history** — last 30 commits per repo, in a side drawer
+- **Clone** — type `owner/repo`, pb-panel picks the right account's token and clones into the right category
+- **Keychain-backed tokens** — stored via macOS Keychain / Windows Credential Manager / libsecret, never in plain files
+- **Multi-account** — add as many GitHub identities as you need; each category is pinned to one account
 
 ---
 
-## Kurulum
+## Install
 
 ### macOS (Apple Silicon)
 
-1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_*.dmg` indir
-2. DMG'yi aç, `pb-panel.app`'i `Applications`'a sürükle
-3. İlk açılışta Gatekeeper "Apple kimliği doğrulanamadı" derse:
-   - **Ayarlar → Gizlilik ve Güvenlik → Yine de aç**
-   - Ya da terminalden: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
+1. Grab `pb-panel_x.y.z_aarch64.dmg` from [Releases](https://github.com/By-Taika/pb-panel/releases)
+2. Open the DMG and drag `pb-panel.app` into `Applications`
+3. On first launch Gatekeeper may warn "unidentified developer":
+   - **System Settings → Privacy & Security → Open Anyway**
+   - Or from the terminal: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
 
-*(Ad-hoc imzalı, notarize edilmemiş — kendi makinende her şey çalışır, sadece ilk açılışta bu onay gerekir.)*
+*(Ad-hoc signed, not notarised — this is normal for open-source Tauri apps. One-time approval on your machine, then it runs like any other app.)*
 
 ### Windows 10/11
 
-1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_x64_en-US.msi` indir
-2. MSI'yı çift tıkla → kurulum
-3. SmartScreen uyarısı çıkarsa **Ek bilgiler → Yine de çalıştır**
-4. Başlat menüsünden "pb-panel" aç
+1. Grab `pb-panel_x.y.z_x64_en-US.msi` from [Releases](https://github.com/By-Taika/pb-panel/releases)
+2. Double-click the MSI to install
+3. If SmartScreen warns, **More info → Run anyway**
+4. Launch "pb-panel" from the Start menu
 
 ---
 
-## İlk çalıştırma
+## First-run wizard
 
-İlk açılışta 3 adımlı bir sihirbaz seni karşılar:
+A 3-step wizard runs the first time you launch pb-panel:
 
-### 1️⃣ Genel
-**Base klasör** — repolarının olduğu kök klasörü seç. Örnekler:
-- `/Users/<isim>/ProjectBase`
-- `/Users/<isim>/Dev`
-- `C:\Users\<isim>\source`
+### 1. General
 
-Alt klasörler kategori olur, onların altındaki git repoları da taranır.
+**Base folder** — the root that contains all your repo folders. Examples:
+- `/Users/<you>/Projects`
+- `/Users/<you>/Dev`
+- `C:\Users\<you>\source`
 
-### 2️⃣ Hesaplar
-Her GitHub kimliği için bir giriş ekle:
-- **Etiket** — UI'da görünen ad (ör. "Kişisel", "Şirket")
-- **Username** — GitHub kullanıcı adın (clone URL'leri için kullanılır)
-- **Token** — [Personal Access Token](https://github.com/settings/tokens) (`repo` scope). Keychain'e yazılır, asla düz dosyaya değil.
+Sub-folders become categories, and the git repos underneath them get scanned.
 
-### 3️⃣ Kategoriler
-Base klasörünün altındaki hangi klasörlerin gösterileceğini ve hangi hesaba bağlı olduğunu seç. **"Base klasörden otomatik doldur"** butonu mevcut klasörleri tarayıp listeye ekler.
+### 2. Accounts
 
-Bittiğinde ayarlar `~/Library/Application Support/com.codecrew.pbpanel/config.json`'a yazılır (Windows: `%APPDATA%\com.codecrew.pbpanel\config.json`).
+Add one entry per GitHub identity:
+- **Label** — the name shown in the UI (e.g. "Work", "Personal")
+- **Username** — your GitHub handle (used when building clone URLs)
+- **Token** — a [Personal Access Token](https://github.com/settings/tokens) with the `repo` scope. Stored in the OS keychain, never written to disk.
 
-Sonradan değiştirmek için sağ üstte ⚙ Ayarlar butonu ya da menubar tray → Ayarlar….
+### 3. Categories
+
+Pick which sub-folders of your base directory should be listed and which account they belong to. The **"Autofill from base folder"** button scans the directory and adds everything it finds.
+
+When you're done, your config is written to the OS-standard app config directory (the exact path is shown in Settings).
+
+To change anything later, click the **⚙ Settings** button in the top-right or open the tray menu.
 
 ---
 
-## Ekran akışı
+## UI overview
 
 ```
 ┌─ Header ────────────────────────────────────────────────┐
-│ pb-panel · ProjectBase   [hesap1] [hesap2]  ↻ + ⚙       │
+│ pb-panel · <base folder>   [account A] [account B]  ↻   │
 ├─ Sidebar ──┬─ Main ─────────────────────────────────────┤
-│ Tümü    42 │ CodeCrew (8)                               │
+│ All     42 │ Category A (8)                             │
 │ ─────      │                                            │
-│ Rani     3 │ ▸ Web Projeleri (3)                        │
-│ CodeCrew 8 │ ┌────────┐┌────────┐┌────────┐             │
-│ KRN      4 │ │ repo-a ││ repo-b ││ repo-c │             │
-│ Fordevo  5 │ │ main ⎇ ││ main ⎇ ││ dev  ⎇ │             │
-│ ByTaika 22 │ │ clean  ││ 3 dirty││ ↓2     │             │
+│ Cat. A   8 │ ▸ Sub-folder (3)                           │
+│ Cat. B   4 │ ┌────────┐┌────────┐┌────────┐             │
+│ Cat. C  22 │ │ repo-a ││ repo-b ││ repo-c │             │
+│ Cat. D   8 │ │ main ⎇ ││ main ⎇ ││ dev  ⎇ │             │
+│            │ │ clean  ││ 3 dirty││ ↯ 2    │             │
 │            │ │ Pull   ││ Pull   ││ Pull   │             │
 │            │ └────────┘└────────┘└────────┘             │
 └────────────┴────────────────────────────────────────────┘
 ```
 
-Bir karttaki **ⓘ** butonuna basınca sağdan drawer açılır:
-- GitHub meta (stars · issues · default branch · language · pushed_at)
-- Açık PR'lar (tıklanınca browser'da açılır)
-- Son 30 commit
+Click the **ⓘ** on any card to open a drawer with:
+- GitHub metadata (stars · open issues · default branch · language · pushed_at)
+- Open pull requests (click to open in the browser)
+- The last 30 commits
+
+The `↯ N` chip on a card means the remote has commits on `N` branches that haven't been fetched yet. Hover to see the branch names.
 
 ---
 
 ## Menubar tray
 
-- Sol click: pencereyi aç/gizle
-- Sağ click:
-  - **Paneli göster**
-  - **Yeniden tara** (30sn'lik otomatik taramanın dışında manuel trigger)
-  - **Ayarlar…**
-  - **Çıkış**
-- Tooltip: `42 repo · 3 dirty · 2 behind`
+- **Left click** — toggle the main window
+- **Right click** menu:
+  - **Show panel**
+  - **Re-scan** (manual trigger in addition to the 30-second auto-scan)
+  - **Settings…**
+  - **Quit**
+- Tooltip: `42 repos · 3 dirty · 2 behind`
 
 ---
 
-## Kaynak koddan build
+## Build from source
 
-### Bağımlılıklar
+### Prerequisites
 - Rust 1.75+ ([rustup](https://rustup.rs))
-- Node 20+ ([nvm](https://github.com/nvm-sh/nvm) ya da [fnm](https://github.com/Schniz/fnm))
+- Node 20+ ([nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm))
 - macOS: Xcode Command Line Tools (`xcode-select --install`)
-- Windows: Visual Studio Build Tools + WebView2 (Win11'de built-in)
+- Windows: Visual Studio Build Tools + WebView2 (bundled on Windows 11)
 
 ### Dev mode
 ```bash
@@ -133,46 +137,46 @@ npm run tauri:dev
 ```bash
 npm run tauri:build
 ```
-Çıktılar:
-- macOS: `src-tauri/target/release/bundle/macos/pb-panel.app`
-- macOS DMG: `src-tauri/target/release/bundle/dmg/pb-panel_*.dmg`
-- Windows: `src-tauri/target/release/bundle/msi/pb-panel_*.msi`
 
-### İkon yenileme
+Artifacts:
+- macOS app: `src-tauri/target/release/bundle/macos/pb-panel.app`
+- macOS DMG: `src-tauri/target/release/bundle/dmg/pb-panel_*.dmg`
+- Windows MSI: `src-tauri/target/release/bundle/msi/pb-panel_*.msi`
+
+### Regenerating icons
 ```bash
-# icon-source.svg'yi düzenle, sonra:
-qlmanage -t -s 1024 -o . icon-source.svg           # macOS'te SVG→PNG
-npx @tauri-apps/cli icon icon-source.svg.png       # tüm boyutları üret
+# edit icon-source.svg, then:
+qlmanage -t -s 1024 -o . icon-source.svg           # SVG → PNG on macOS
+npx @tauri-apps/cli icon icon-source.svg.png       # emit every target size
 ```
 
 ---
 
-## Mimari (kısa)
+## Architecture (short version)
 
-| Katman | Teknoloji |
+| Layer | Tech |
 |---|---|
 | UI | React 18 + Vite 5 + TailwindCSS 3 |
-| Pencere + IPC | Tauri v2 (Rust shell) |
-| Git çağrıları | `tokio::process::Command("git", …)` |
-| GitHub API | `reqwest` + per-hesap token |
-| Token | `keyring` crate (macOS Keychain / Windows Credential Manager / libsecret) |
-| Config | JSON dosyası, atomic write via `.tmp + rename` |
+| Window + IPC | Tauri v2 (Rust host) |
+| Git operations | `tokio::process::Command("git", …)` |
+| GitHub API | `reqwest` + per-account token |
+| Token storage | `keyring` crate (Keychain / Credential Manager / libsecret) |
+| Config | JSON file, atomic write via `.tmp + rename` |
 
-Tauri backend sadece git komutlarını shell'den çağırır — libgit2 vs. bağımlılık yok, makinendeki `git` neyi yapabiliyorsa panel de onu yapar.
-
----
-
-## Gizlilik
-
-- Token'lar **her zaman** OS keychain'de (Keychain.app / Credential Manager / libsecret) tutulur
-- Hiçbir yere telemetri gönderilmez, hiçbir arka uç yoktur — pb-panel tamamen lokaldir
-- GitHub API çağrıları sadece seçtiğin hesabın token'ıyla `api.github.com`'a gider
-- Clone URL'leri log'a yazılırken token'lar regex ile maskelenir (`ghp_***`)
+The Rust side shells out to `git` rather than linking libgit2, so anything your local `git` can do, pb-panel can do — no extra dependencies, no version skew.
 
 ---
 
-## Lisans
+## Privacy
 
-MIT — bkz. [LICENSE](LICENSE).
+- Tokens are **always** stored in the OS keychain (Keychain, Credential Manager, or libsecret — depending on platform)
+- No telemetry, no backend, no network calls except direct GitHub API requests made with your own token
+- Clone URLs are masked in logs before being written (`ghp_***`), so tokens never leak into log files
 
-Tauri kullanılarak üretildi · Katkılar + issue'lar memnuniyetle karşılanır.
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Built with Tauri · Issues and pull requests welcome.
