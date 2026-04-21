@@ -9,12 +9,12 @@
 ![built_with](https://img.shields.io/badge/built_with-Tauri_v2-orange)
 [![latest release](https://img.shields.io/github/v/release/By-Taika/pb-panel?label=latest&color=blueviolet)](https://github.com/By-Taika/pb-panel/releases/latest)
 
-## ⬇ Download
+## Download
 
 | Platform | Installer |
 |---|---|
-| 🍎 **macOS (Apple Silicon)** | [**Download `.dmg`**](https://github.com/By-Taika/pb-panel/releases/latest) |
-| 🪟 **Windows 10 / 11** | [**Download `.msi`**](https://github.com/By-Taika/pb-panel/releases/latest) or [`.exe` (NSIS)](https://github.com/By-Taika/pb-panel/releases/latest) |
+| **macOS (Apple Silicon)** | [**Download `.dmg`**](https://github.com/By-Taika/pb-panel/releases/latest) |
+| **Windows 10 / 11** | [**Download `.msi`**](https://github.com/By-Taika/pb-panel/releases/latest) or [`.exe` (NSIS)](https://github.com/By-Taika/pb-panel/releases/latest) |
 
 Links always point to the most recent release — pick the asset that matches your platform. Once installed, pb-panel will handle updates itself via the built-in updater.
 

@@ -9,12 +9,12 @@ Türkçe · [🇬🇧 English README](README.md)
 ![built_with](https://img.shields.io/badge/built_with-Tauri_v2-orange)
 [![son sürüm](https://img.shields.io/github/v/release/By-Taika/pb-panel?label=son%20s%C3%BCr%C3%BCm&color=blueviolet)](https://github.com/By-Taika/pb-panel/releases/latest)
 
-## ⬇ İndirme
+## İndirme
 
 | Platform | Paket |
 |---|---|
-| 🍎 **macOS (Apple Silicon)** | [**`.dmg` indir**](https://github.com/By-Taika/pb-panel/releases/latest) |
-| 🪟 **Windows 10 / 11** | [**`.msi` indir**](https://github.com/By-Taika/pb-panel/releases/latest) veya [`.exe` (NSIS)](https://github.com/By-Taika/pb-panel/releases/latest) |
+| **macOS (Apple Silicon)** | [**`.dmg` indir**](https://github.com/By-Taika/pb-panel/releases/latest) |
+| **Windows 10 / 11** | [**`.msi` indir**](https://github.com/By-Taika/pb-panel/releases/latest) veya [`.exe` (NSIS)](https://github.com/By-Taika/pb-panel/releases/latest) |
 
 Bağlantılar her zaman en son sürüme gider — platformuna uygun dosyayı seç. Kurulum sonrası pb-panel güncellemeleri kendi auto-updater'ı ile halleder.
 
