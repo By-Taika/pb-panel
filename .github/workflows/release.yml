@@ -10,23 +10,49 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub release (draft)
+        id: create_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `pb-panel ${tag}`,
+              body: `## pb-panel ${tag}\n\nYeni sürüm. Değişiklikler için [CHANGELOG](../../blob/main/CHANGELOG.md).\n\n### İndir\n- **macOS (Apple Silicon)**: \`pb-panel_*_aarch64.dmg\`\n- **Windows**: \`pb-panel_*_x64_en-US.msi\` veya \`pb-panel_*_x64-setup.exe\`\n\nÖnceki sürümden güncelleme yapıyorsan panel kendi auto-updater'ı ile indirmeyi teklif edecek.\n\n### Kurulum notları\n- **macOS**: Gatekeeper uyarısı çıkarsa sağ tık → Aç, ya da \`xattr -d com.apple.quarantine /Applications/pb-panel.app\`.\n- **Windows**: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".`,
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-14
             target: aarch64-apple-darwin
-            name: macos-arm64
+            bundle_subdir: macos
+            bundle_glob: "*.app.tar.gz *.app.tar.gz.sig *.dmg"
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-            name: windows-x64
+            bundle_subdir: nsis
+            bundle_glob: "*.exe *.nsis.zip *.nsis.zip.sig"
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,64 +74,49 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app (direct, no tauri-action)
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          args: --target ${{ matrix.target }}
-          tagName: ${{ github.ref_name }}
-          releaseName: 'pb-panel ${{ github.ref_name }}'
-          releaseBody: |
-            ## pb-panel ${{ github.ref_name }}
+        run: npx tauri build --target ${{ matrix.target }}
 
-            Yeni sürüm. İçinde ne değiştiği için [CHANGELOG](../../blob/main/CHANGELOG.md) dosyasına bakabilirsin.
+      # Bundle içeriğini listele — hangi artifact'lar üretildi görebilelim.
+      - name: List bundle outputs
+        shell: bash
+        run: |
+          echo "--- bundle/${{ matrix.bundle_subdir }} ---"
+          ls -la "src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle_subdir }}/" || true
+          echo "--- bundle root ---"
+          ls -la "src-tauri/target/${{ matrix.target }}/release/bundle/" || true
 
-            ### İndir
-            - **macOS (Apple Silicon)**: `pb-panel_*_aarch64.dmg`
-            - **Windows**: `pb-panel_*_x64_en-US.msi`
-
-            Önceki sürümden güncelleme yapıyorsan panel kendi auto-updater'ı ile indirmeyi teklif edecek.
-
-            ### Kurulum notları
-            - **macOS**: ilk açılışta Gatekeeper uyarısı çıkarsa sağ tık → Aç, ya da `xattr -d com.apple.quarantine /Applications/pb-panel.app`.
-            - **Windows**: SmartScreen uyarısı çıkarsa "Ek bilgiler → Yine de çalıştır".
-          releaseDraft: false
-          prerelease: false
-
-      # tauri-action@v0 şu an .sig dosyalarını bulamayıp latest.json yüklemiyor
-      # ("Signature not found for the updater JSON" hatası). Biz o eksikleri
-      # manuel olarak tamamlıyoruz: bundle dizinindeki .tar.gz / .nsis.zip / .sig
-      # dosyalarını topla ve release'e ekle.
-      - name: Upload updater bundle + .sig (macOS)
-        if: matrix.platform == 'macos-14'
+      # Bundle dizinindeki installer + updater paketini + .sig dosyasını release'e yükle.
+      - name: Upload all bundle artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -e
-          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          for f in "$BUNDLE"/*.app.tar.gz "$BUNDLE"/*.app.tar.gz.sig; do
-            [ -f "$f" ] || continue
-            echo "Uploading $(basename "$f") to ${{ github.ref_name }}"
-            gh release upload "${{ github.ref_name }}" "$f" --clobber --repo "${{ github.repository }}"
+          BUNDLE_ROOT="src-tauri/target/${{ matrix.target }}/release/bundle"
+          # Her glob pattern'ini tüm bundle alt-dizinlerinde ara, bulunanları yükle.
+          for pat in ${{ matrix.bundle_glob }}; do
+            # shellcheck disable=SC2086
+            while IFS= read -r -d '' f; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f")
+              echo "Uploading $name"
+              gh release upload "$TAG" "$f" --clobber --repo "${{ github.repository }}"
+            done < <(find "$BUNDLE_ROOT" -type f -name "$pat" -print0 2>/dev/null)
           done
 
-      - name: Upload updater bundle + .sig (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/nsis"
-          for f in "$BUNDLE"/*.nsis.zip "$BUNDLE"/*.nsis.zip.sig; do
-            [ -f "$f" ] || continue
-            echo "Uploading $(basename "$f") to ${{ github.ref_name }}"
-            gh release upload "${{ github.ref_name }}" "$f" --clobber --repo "${{ github.repository }}"
-          done
+          # macOS MSI yerine Windows MSI de var — onu da yükle (matrix'te NSIS bundle_subdir tanımlı ama MSI'yi de atalım).
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            while IFS= read -r -d '' f; do
+              echo "Uploading (extra) $(basename "$f")"
+              gh release upload "$TAG" "$f" --clobber --repo "${{ github.repository }}"
+            done < <(find "$BUNDLE_ROOT/msi" -type f \( -name "*.msi" -o -name "*.msi.sig" -o -name "*.msi.zip" -o -name "*.msi.zip.sig" \) -print0 2>/dev/null)
+          fi
 
   manifest:
     needs: build
@@ -114,15 +125,17 @@ jobs:
       - name: Build and upload latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
-          TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          REPO="${{ github.repository }}"
 
           mkdir -p ./sigs
           gh release download "$TAG" --pattern "*.sig" --dir ./sigs --repo "$REPO" || true
+          echo "--- downloaded .sig files ---"
+          ls -la ./sigs || true
 
           mac_sig_file=$(ls ./sigs/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
           win_sig_file=$(ls ./sigs/*.nsis.zip.sig 2>/dev/null | head -1 || true)
@@ -157,3 +170,10 @@ jobs:
           cat latest.json
 
           gh release upload "$TAG" latest.json --clobber --repo "$REPO"
+
+      - name: Publish release (undraft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: gh release edit "$TAG" --draft=false --repo "$REPO"

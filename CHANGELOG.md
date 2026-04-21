@@ -2,6 +2,18 @@
 
 Bu dosya pb-panel'in her sürümünde neyin değiştiğini listeler. Format [Keep a Changelog](https://keepachangelog.com/) temelli, sürüm numaraları [SemVer](https://semver.org/).
 
+## [0.8.2] — 2026-04-21
+
+v0.8.1'deki auto-updater fix'i yeterli değildi — `tauri-action` post-upload'da `.sig` ve `.nsis.zip` dosyalarını build dizininden temizliyordu, bizim manuel upload step'imiz ulaşamıyordu.
+
+Bu sürümde:
+- CI `tauri-action` yerine doğrudan `npx tauri build` çağırıyor (artifact temizleme yok)
+- Bundle dizinindeki tüm `.sig`, `.nsis.zip`, `.dmg`, `.exe`, `.msi` dosyaları `gh release upload` ile manuel yükleniyor
+- `manifest` job'u `.sig` içeriğini okuyup doğru `latest.json`'ı yazıyor
+- Release önce draft olarak açılıyor, manifest job bitince undraft ediliyor
+
+Auto-updater artık v0.8.2 sürümünden itibaren gerçekten çalışıyor.
+
 ## [0.8.1] — 2026-04-21
 
 Auto-updater için gerekli `latest.json` manifest'i ve `.sig` imza dosyaları release'e yüklenmiyordu (`tauri-action@v0` "Signature not found" uyarısıyla skip ediyordu). Release workflow'una manuel upload step'leri ve ayrı bir `manifest` job'u eklendi.
