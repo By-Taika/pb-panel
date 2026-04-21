@@ -11,11 +11,13 @@ import { UpdateModal } from './components/UpdateModal';
 import { api } from './lib/api';
 import { diffAndNotify, ensureNotificationPermission } from './lib/notifications';
 import { checkForUpdate } from './lib/updater';
+import { useT } from './lib/i18n';
 import type { AccountsInfo, Category, Config, RepoInfo } from './lib/types';
 
 type Toast = { id: number; msg: string; ok: boolean };
 
 export function App() {
+  const t = useT();
   const [config, setConfig] = useState<Config | null>(null);
   const [accounts, setAccounts] = useState<AccountsInfo | null>(null);
   const [repos, setRepos] = useState<Record<Category, RepoInfo[]>>({});
@@ -47,7 +49,7 @@ export function App() {
       const data = await api.repos();
       // Diff against the last snapshot so the user gets a native notification
       // for meaningful state changes (new behind commits, new dirty files).
-      diffAndNotify(previousRepos.current, data);
+      diffAndNotify(previousRepos.current, data, t);
       previousRepos.current = data;
       setRepos(data);
     } catch (e: any) {
@@ -55,7 +57,7 @@ export function App() {
     } finally {
       setRefreshing(false);
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const loadAccounts = useCallback(async () => {
     try {
@@ -131,7 +133,7 @@ export function App() {
 
   // --- Gating states ---
   if (!config) {
-    return <BootSplash />;
+    return <BootSplash label={t('main.booting')} />;
   }
 
   if (!config.firstRunComplete) {
@@ -163,10 +165,10 @@ export function App() {
       .flat()
       .filter((r) => r.behind > 0 && r.dirty === 0);
     if (toPull.length === 0) {
-      toast('Çekilecek repo yok (behind=0 veya dirty)', true);
+      toast(t('main.noRepoToPull'), true);
       return;
     }
-    toast(`${toPull.length} repo güncelleniyor…`, true);
+    toast(t('main.pullingN', { n: toPull.length }), true);
     await Promise.all(
       toPull.map((r) =>
         api.pull(r.category, r.name, r.subCategory).then((res) => toast(`${r.name}: ${res.ok ? '✓' : '✗'}`, res.ok))
@@ -198,18 +200,18 @@ export function App() {
         <main className="flex-1 p-6 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <div className="text-xs text-panel-muted">
-              {selected === 'all' ? 'Tüm kategoriler' : selected}
+              {selected === 'all' ? t('main.allCategories') : selected}
             </div>
             <button onClick={pullAllDirty} className="btn-ghost">
-              ↓↓ Pull behind'i olanları
+              {t('main.pullAllBehind')}
             </button>
           </div>
 
           {visibleCategoryNames.length === 0 && (
             <div className="border border-dashed border-panel-border rounded-lg p-10 text-center">
-              <div className="text-sm text-panel-muted mb-3">Henüz hiç kategori tanımlı değil.</div>
+              <div className="text-sm text-panel-muted mb-3">{t('main.noCategories')}</div>
               <button onClick={() => setShowSettings(true)} className="btn-primary">
-                ⚙ Ayarlar
+                ⚙ {t('header.settings')}
               </button>
             </div>
           )}
@@ -295,11 +297,11 @@ export function App() {
   );
 }
 
-function BootSplash() {
+function BootSplash({ label }: { label: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-panel-accent to-panel-accent2 animate-pulse" />
-      <div className="text-xs text-panel-muted font-mono">pb-panel yükleniyor…</div>
+      <div className="text-xs text-panel-muted font-mono">{label}</div>
     </div>
   );
 }
@@ -319,11 +321,12 @@ function groupBySub(list: RepoInfo[]): Array<[string | null, RepoInfo[]]> {
 }
 
 function EmptyState({ category, onClone }: { category: Category; onClone: () => void }) {
+  const t = useT();
   return (
     <div className="border border-dashed border-panel-border rounded-lg p-8 text-center text-panel-muted">
-      <div className="text-sm mb-2">{category} kategorisinde henüz repo yok</div>
+      <div className="text-sm mb-2">{t('main.emptyCategory', { cat: category })}</div>
       <button onClick={onClone} className="btn-primary">
-        + Clone
+        + {t('header.clone')}
       </button>
     </div>
   );

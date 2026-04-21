@@ -1,6 +1,8 @@
 # pb-panel
 
-**Birden fazla GitHub hesabı için yerel git repolarını tek panelden yöneten desktop uygulaması.**
+**Desktop cockpit for managing local git repos across multiple GitHub identities.**
+
+[🇹🇷 Türkçe README](README.tr.md) · English
 
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
@@ -9,229 +11,230 @@
 
 ---
 
-## Ne işe yarar
+## What it does
 
-Eğer tek bir klasörün altında onlarca git repon varsa (`~/Projects`, `~/Dev`, `~/ProjectBase` gibi), pb-panel her repo için ayrı terminal açmak yerine hepsinin durumunu tek ekranda gösterir: kirli dosya, origin'den geride/ileride mi, hangi branch'teyiz, son commit ne zaman atıldı.
+If you keep dozens of git repos under a single root folder (`~/Projects`, `~/Dev`, `~/ProjectBase`), pb-panel lets you see which ones are dirty, which are behind origin, which branch you're on, and when the last commit landed — without opening a terminal in every one of them.
 
-Native macOS/Windows uygulaması (Tauri v2 — Electron değil, arka plan server'ı yok). v0.8 ile artık sadece **gözlem** değil, **aksiyon paneli**:
+Native macOS/Windows app (Tauri v2 — no Electron, no background server). As of **v0.8** it is not just an observation dashboard, it is a **full git cockpit**:
 
-### Temel özellikler
+### Core features
 
-- **Tarama** — seçtiğin ana klasörün altındaki her git repo'yu bir seviye alt-klasöre kadar otomatik bulur
-- **Tek bakışta durum** — branch · kirli dosya sayısı · ahead/behind · son commit (yazar + göreli zaman)
-- **Remote güncelleme ipucu** — `git ls-remote` ile fetch yapmadan remote'ta yeni ne var görür
-- **Toplu pull** — behind olan repo'ları tek tıkla günceller
-- **Tray ikon** — pencere kapalıyken bile kirli/behind sayısını menubar'dan gösterir
-- **Clone** — `owner/repo` yaz, doğru hesap token'ını seçer, doğru kategoriye indirir
-- **Keychain-backed token saklama** — token asla düz dosyada tutulmaz
-- **Çoklu hesap** — iş + kişisel hesapları yan yana tutabilirsin
+- **Scan** every git repo under your chosen root folder, down to one level of sub-folders
+- **At-a-glance status** — branch · dirty file count · ahead/behind · last commit (author + relative time)
+- **Remote update hints** — uses `git ls-remote` to detect new upstream commits without fetching
+- **Bulk pull** — pull every behind repo with one click
+- **Menubar tray** — shows dirty/behind counts while the window is closed
+- **Clone** — type `owner/repo`, pb-panel picks the right account's token and drops it into the right category
+- **Keychain-backed tokens** — never stored in plain text on disk
+- **Multi-account** — work + personal side by side
 
-### Yeni (v0.8) — kokpit özellikleri
+### New in v0.8 — cockpit features
 
-- **Auto-updater** — yeni sürüm çıkınca panel kendisi haber verir + indirir + kurar + yeniden başlar
-- **Branch yönetimi** — checkout, create, push, delete, remote branch tracking, stash (save/pop/drop) hepsi panelden
-- **Pull Request yönetimi** — PR oluştur, merge et (squash/merge/rebase), auto-merge aç/kapa, hepsini tarayıcı açmadan panelden
-- **Çakışma (conflict) çözümü** — merge/rebase sırasında çakışan dosyaları listeler, ours/theirs tek tıkla, IDE'de aç, continue/abort
-- **Native bildirimler** — remote'ta yeni commit belirdiğinde, repo kirlendiğinde, fetch edilmemiş iş olduğunda sistem bildirimi
+- **Auto-updater** — panel notifies you when a new release is out, downloads it, verifies the signature, installs and relaunches
+- **Branch management** — checkout, create, push, delete, track remote branches, stash (save/pop/drop) from the panel
+- **Pull Request management** — create PRs, merge (squash/merge/rebase), toggle GitHub auto-merge — all without opening the browser
+- **Conflict resolution** — during merge/rebase, lists conflicted files, diff preview, one-click ours/theirs, open in IDE, continue/abort
+- **Native notifications** — system notifications when the remote has new commits, when a repo becomes dirty, when unfetched work appears
+- **Bilingual UI** — Turkish + English toggle in the header, persisted in config
 
 ---
 
-## Kurulum
+## Install
 
 ### macOS (Apple Silicon)
 
-1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_aarch64.dmg` dosyasını indir
-2. DMG'yi aç, `pb-panel.app`'i `Applications`'a sürükle
-3. İlk açılışta Gatekeeper "kaynağı belirsiz" uyarısı çıkarsa:
-   - **Sistem Ayarları → Gizlilik & Güvenlik → Yine de Aç**
-   - Veya terminalden: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
+1. Grab `pb-panel_x.y.z_aarch64.dmg` from [Releases](https://github.com/By-Taika/pb-panel/releases)
+2. Open the DMG and drag `pb-panel.app` into `Applications`
+3. On first launch, if Gatekeeper warns "unidentified developer":
+   - **System Settings → Privacy & Security → Open Anyway**
+   - Or from terminal: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
 
-*(Ad-hoc imzalı, notarize edilmemiş — açık kaynak Tauri uygulamaları için normal. Bir kez onay verirsin, sonra başka uygulamalar gibi çalışır.)*
+*(Ad-hoc signed, not notarised — normal for open-source Tauri apps. One-time approval, then runs like any other app.)*
 
 ### Windows 10/11
 
-1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_x64_en-US.msi` dosyasını indir
-2. MSI'ya çift tıkla, kurulum sihirbazını takip et
-3. SmartScreen uyarısı çıkarsa **Daha fazla bilgi → Yine de çalıştır**
-4. Start menüden "pb-panel" ile başlat
+1. Grab `pb-panel_x.y.z_x64_en-US.msi` from [Releases](https://github.com/By-Taika/pb-panel/releases)
+2. Double-click the MSI
+3. If SmartScreen warns, **More info → Run anyway**
+4. Launch "pb-panel" from the Start menu
 
-### Sürüm güncellemeleri (otomatik)
+### Auto-updates
 
-v0.8'den itibaren panel kendisi yeni sürüm var mı kontrol eder:
-- Her açılışta bir kez, sonra 6 saatte bir GitHub releases'e bakar
-- Yeni sürüm varsa modal gösterir: "Yeni sürüm var, indir ve yükle" butonu
-- Onayladıktan sonra indirme + imza doğrulama + yükleme + yeniden başlatma otomatik
-- İstemezsen "Sonra" deyip kapatabilirsin, bir sonraki periyodik kontrolde tekrar sorar
+Starting v0.8, the app checks for new releases automatically:
+- Once at launch, then every 6 hours
+- When a new release is found, a modal asks you to install
+- Download + signature verification + install + relaunch — all automatic
+- You can postpone; the check runs again 6 hours later
 
-> İlk kurulum manuel indirme gerektiriyor, sonraki sürümleri güncelleyici hallediyor.
-
----
-
-## İlk çalıştırma sihirbazı
-
-İlk açılışta 3 adımlık bir sihirbaz çıkar:
-
-### 1. Genel
-
-**Ana klasör** — tüm repo klasörlerini barındıran kök. Örnekler:
-- `/Users/<sen>/Projects`
-- `/Users/<sen>/Dev`
-- `C:\Users\<sen>\source`
-
-Alt klasörler kategori olur, onların altındaki git repoları taranır.
-
-### 2. Hesaplar
-
-Her GitHub kimliği için bir giriş ekle:
-- **Etiket** — UI'da görünecek isim (örn. "İş", "Kişisel")
-- **Kullanıcı adı** — GitHub kullanıcı adın (clone URL'i oluşturulurken kullanılır)
-- **Token** — `repo` yetkili [Personal Access Token](https://github.com/settings/tokens). OS keychain'e yazılır, diskte düz halde tutulmaz.
-
-### 3. Kategoriler
-
-Ana klasörün hangi alt-klasörleri listelensin, her biri hangi hesaba bağlı — seç. **"Ana klasörden otomatik doldur"** butonu klasörü tarar, bulduklarını ekler.
-
-Bitince config, OS'un standart app config dizinine yazılır (tam yolu Ayarlar'dan görebilirsin).
-
-Sonradan değiştirmek için sağ üstteki **⚙ Ayarlar** butonu veya tray menü.
+> First install is manual. Subsequent updates are handled by the auto-updater.
 
 ---
 
-## Ana ekran
+## First-run wizard
+
+A 3-step wizard runs the first time you launch the app:
+
+### 1. General
+
+**Base folder** — the root that contains all your repo folders. Examples:
+- `/Users/<you>/Projects`
+- `/Users/<you>/Dev`
+- `C:\Users\<you>\source`
+
+Sub-folders become categories, and the git repos under them get scanned.
+
+### 2. Accounts
+
+One entry per GitHub identity:
+- **Label** — the name shown in the UI (e.g. "Work", "Personal")
+- **Username** — your GitHub handle (used when building clone URLs)
+- **Token** — a [Personal Access Token](https://github.com/settings/tokens) with the `repo` scope. Stored in the OS keychain, never on disk.
+
+### 3. Categories
+
+Choose which sub-folders of your base directory should appear and which account each one belongs to. The **"Autofill from base folder"** button scans and adds everything it finds.
+
+When you're done, the config is written to the OS-standard app config directory (path shown in Settings).
+
+To change anything later, click **⚙ Settings** top-right, or use the tray menu.
+
+---
+
+## Main screen
 
 ```
 ┌─ Header ────────────────────────────────────────────────┐
-│ pb-panel · <ana klasör>  [Hesap A] [Hesap B]   ↻  Clone │
-├─ Sidebar ──┬─ Ana alan ─────────────────────────────────┤
-│ Hepsi  42  │ Kategori A (8)                             │
+│ pb-panel · <base folder>  [Account A] [Account B]  ↻ 🌐 │
+├─ Sidebar ──┬─ Main ──────────────────────────────────── ┤
+│ All    42  │ Category A (8)                             │
 │ ─────      │                                            │
-│ Kat. A  8  │ ▸ Alt-klasör (3)                           │
-│ Kat. B  4  │ ┌────────┐┌────────┐┌────────┐             │
-│ Kat. C 22  │ │ repo-a ││ repo-b ││ repo-c │             │
-│ Kat. D  8  │ │ main ⎇ ││ main ⎇ ││ dev  ⎇ │             │
-│            │ │ temiz  ││ 3 dirty││ ↯ 2    │             │
+│ Cat. A  8  │ ▸ Sub-folder (3)                           │
+│ Cat. B  4  │ ┌────────┐┌────────┐┌────────┐             │
+│ Cat. C 22  │ │ repo-a ││ repo-b ││ repo-c │             │
+│ Cat. D  8  │ │ main ⎇ ││ main ⎇ ││ dev  ⎇ │             │
+│            │ │ clean  ││ 3 dirty││ ↯ 2    │             │
 │            │ │ Pull   ││ Pull   ││ Pull   │             │
 │            │ └────────┘└────────┘└────────┘             │
 └────────────┴────────────────────────────────────────────┘
 ```
 
-Her kartta **Pull** / **Fetch** / **Open** (IDE'de açar) / **ⓘ** (detay drawer) butonları.
+Each card has **Pull** / **Fetch** / **Open** (opens in IDE) / **ⓘ** (detail drawer) buttons.
 
-**↯ N** rozeti = remote'da N farklı branch'te fetch edilmemiş yeni commit var. Hover'da branch isimleri görünür.
+**↯ N** chip = remote has unfetched new commits on N branches. Hover shows branch names. The **🌐 language toggle** in the header flips the whole UI between Turkish and English.
 
 ---
 
-## Detay drawer'ı — 4 sekme
+## Detail drawer — four tabs
 
-Kart üzerinde **ⓘ** tıklayınca sağdan drawer açılır, içinde 4 sekme:
+Click **ⓘ** on any card. A side drawer opens with four tabs:
 
-### 1. Genel bakış
+### 1. Overview
 
-- **GitHub** — stars · açık issue · default branch · visibility · dil · `pushed_at`
-- **Lokal durum** — branch · kirli dosya sayısı · ahead/behind · remote updates · hesap
-- **Commit history** — son 30 commit
+- **GitHub** — stars · open issues · default branch · visibility · language · `pushed_at`
+- **Local state** — branch · dirty file count · ahead/behind · remote updates · account
+- **Commit history** — last 30 commits
 
-### 2. Branches (yeni v0.8)
+### 2. Branches (new in v0.8)
 
-Yerel + remote branch listesi.
+Local + remote branch list.
 
-**Yerel branch satırında:**
-- ● işareti + renkli → aktif branch
-- `⎇ <isim>` → branch ismi
-- `↔ origin/<isim>` → upstream takibi
-- `↑N` (yeşil) / `↓N` (amber) → ahead / behind sayıları
-- Son commit mesajı + göreli zaman
+**Local branch row:**
+- ● coloured marker → current branch
+- `⎇ <name>` → branch name
+- `↔ origin/<name>` → upstream tracking
+- `↑N` (green) / `↓N` (amber) → ahead / behind counts
+- Last commit subject + relative time
 
-**Aksiyonlar (her satırda):**
-- `→` — checkout (dirty working tree varsa engellenir, önce commit/stash lazım)
-- `↑` — push (upstream yoksa `push -u origin <branch>` yapar)
-- `×` — delete (confirm dialog'lu)
+**Per-row actions:**
+- `→` — checkout (blocked if working tree is dirty; commit or stash first)
+- `↑` — push (sets upstream automatically if missing)
+- `×` — delete (confirm dialog)
 
-**Yeni branch** — "+ Yeni" butonu → isim yaz → HEAD'den create + checkout tek adımda.
+**New branch** — "+ New" button → name it → create + checkout from HEAD in one step.
 
-**Remote branch listesi** — tracking yapılmamış remote branch'leri listeler. "checkout" tıklayınca `origin/feature/x` → yerel `feature/x` olarak oluşturur ve geçer.
+**Remote branches** — lists untracked remote branches. Clicking "checkout" creates `feature/x` locally tracking `origin/feature/x`.
 
 **Stash:**
-- "Stash değişiklikleri" — kirli dosyaları `stash push -m "pb-panel ..."` ile saklar
-- Her stash için `pop` (uygula + sil) veya `×` (direkt sil, confirm'li)
+- "Stash changes" — runs `stash push -m "pb-panel ..."` on dirty files
+- Each stash row: `pop` (apply + remove) or `×` (drop, confirm'd)
 
-### 3. PR (Pull Requests — yeni v0.8)
+### 3. PR (Pull Requests — new in v0.8)
 
-Açık PR listesi — GitHub API'dan. Kapalıları görmek için GitHub'da aç.
+Open PRs list from the GitHub API. For closed ones, open on GitHub.
 
-**Her PR satırı:** `#N · başlık · yazar · son güncelleme · draft rozeti (varsa)`
+**Each PR row:** `#N · title · author · last updated · draft badge (if any)`
 
-**Genişletince:**
-- head/base branch isimleri
-- mergeable durumu (`temiz`, `çakışma`, `hesaplanıyor`)
-- auto-merge aktif mi
-- Açıklama (markdown, gizli, "Açıklama" ile göster)
-- **Merge butonu** — squash/merge/rebase seçilebilir. Confirm dialog'lu. Çakışma varsa devre dışı.
-- **Auto-merge aç** — GitHub'ın native auto-merge'ü GraphQL API üzerinden. Tüm check'ler geçince PR otomatik merge olur.
-- **Auto-merge iptal** — zaten aktifse iptal butonu
-- **GitHub'da aç** — tarayıcıda detaylı incelemek için
+**Expanded:**
+- head/base branch names
+- mergeable state (`clean`, `dirty`, `unknown`)
+- auto-merge on/off
+- Description (markdown, collapsible)
+- **Merge now** — pick squash/merge/rebase; confirm'd; disabled if conflicts exist
+- **Enable auto-merge** — GitHub's native auto-merge via GraphQL. Merges once all checks pass.
+- **Disable auto-merge** — if currently on
+- **Open on GitHub** — for detailed review in browser
 
-**Yeni PR oluşturma** — "+ Yeni PR" butonu:
-- head ve base branch (default: aktif branch → `main`)
-- başlık + markdown body
+**Create PR** — "+ New PR" button:
+- head/base branch (default: current branch → `main`)
+- title + markdown body
 - draft checkbox
-- "PR oluştur" tıkla, sonuç toast'ta PR numarasıyla.
+- "Create PR" → toast with the new PR number
 
-### 4. Çakışmalar (conflicts — yeni v0.8)
+### 4. Conflicts (new in v0.8)
 
-Merge/rebase sırasında çakışma çıkarsa bu sekme kırmızı rozet gösterir.
+If a merge or rebase runs into conflicts, this tab shows a red badge.
 
-**Üst banner** — aktif işlemi ve dosya sayısını söyler:
-- **✓ Devam** — tüm dosyalar çözülünce, `git commit --no-edit` ile finalize eder
-- **× İptal** — `git merge --abort` / `git rebase --abort`, confirm'li (değişiklikler geri alınır)
+**Top banner** — shows the active operation and file count:
+- **✓ Continue** — once all files resolved, runs `git commit --no-edit` to finalize
+- **× Abort** — `git merge --abort` / `git rebase --abort`, confirm'd (changes reverted)
 
-**Dosya listesi:**
-- Her dosyanın yanında status code (UU, DD, AA, vs.)
-- Tıklayınca diff preview açılır (monospaced)
-- **← ours seç** — `git checkout --ours <file>` + auto `git add`
-- **theirs seç →** — `git checkout --theirs <file>` + auto `git add`
-- **IDE'de aç** — detaylı editör çözümü için
+**File list:**
+- Each file shows its git status code (UU, DD, AA, etc.)
+- Click to expand the diff preview (monospaced)
+- **← use ours** — `git checkout --ours <file>` + auto `git add`
+- **use theirs →** — `git checkout --theirs <file>` + auto `git add`
+- **Open in IDE** — for detailed manual resolution
 
-Hiç çakışma yoksa: "Çakışma yok, repo temiz."
+If nothing is conflicted: "No conflicts, repo is clean."
 
 ---
 
-## Tray ikon (menubar)
+## Menubar tray
 
-- **Sol tık** — ana pencereyi aç/kapat
-- **Sağ tık menüsü:**
-  - **Paneli göster**
-  - **Yeniden tara** (30 saniyelik otomatik taramaya ek olarak)
-  - **Ayarlar…**
-  - **Çıkış**
+- **Left click** — toggle main window
+- **Right click** menu:
+  - **Show panel**
+  - **Re-scan** (on top of the 30-second auto-scan)
+  - **Settings…**
+  - **Quit**
 - Tooltip: `42 repos · 3 dirty · 2 behind`
 
 ---
 
-## Native bildirimler (yeni v0.8)
+## Native notifications (new in v0.8)
 
-pb-panel ilk açılışta bildirim izni ister. Onayladıktan sonra arka plan taraması (60 saniyede bir) sırasında şu durumlarda sistem bildirimi gönderir:
+On first launch the app asks for notification permission. Once granted, the background scan (every 60s) fires a system notification when:
 
-| Olay | Örnek bildirim |
+| Event | Example notification |
 |---|---|
-| Remote'ta yeni commit (behind arttı) | "Yeni commit var — `rani-platform` 3 commit geride. Pull etmek ister misin?" |
-| Temiz repo kirlendi | "Uncommitted değişiklik — `rani-lms` içinde 4 dosya değişmiş, henüz commit edilmemiş." |
-| Remote updates belirdi | "Remote güncellendi — `rani-envanter` için upstream'de yeni iş var (feature/xyz, main)." |
+| Remote has new commits (behind grew) | "New commits — `rani-platform` is 3 commits behind. Pull?" |
+| Clean repo became dirty | "Uncommitted changes — `rani-lms` has 4 changed files, not yet committed." |
+| Unfetched remote updates | "Remote updated — `rani-envanter` has new work upstream (feature/xyz, main)." |
 
-İlk taramada bildirim gitmez (cold start için sessiz). Sadece durum değişikliklerinde tetiklenir.
+Nothing fires on the first scan (quiet cold start). Only state changes trigger.
 
-Kapatmak istersen: macOS Ayarlar → Bildirimler → pb-panel → İzinleri kaldır.
+Disable at OS level: macOS Settings → Notifications → pb-panel → revoke permission.
 
 ---
 
-## Kaynaktan derleme
+## Build from source
 
-### Gereksinimler
+### Requirements
 
 - Rust 1.75+ ([rustup](https://rustup.rs))
-- Node 20+ ([nvm](https://github.com/nvm-sh/nvm) veya [fnm](https://github.com/Schniz/fnm))
+- Node 20+ ([nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm))
 - macOS: Xcode Command Line Tools (`xcode-select --install`)
-- Windows: Visual Studio Build Tools + WebView2 (Windows 11'de built-in)
+- Windows: Visual Studio Build Tools + WebView2 (built into Windows 11)
 
 ### Dev mode
 
@@ -242,7 +245,7 @@ npm install
 npm run tauri:dev
 ```
 
-Vite dev server `http://localhost:5555`'te çalışır, Rust host onu webview'e yükler. Rust tarafında kod değişikliği yapınca hot-reload için rebuild edilir.
+Vite dev server runs on `http://localhost:5555`, Rust host loads it into a webview. Hot-reload on both sides.
 
 ### Release build
 
@@ -250,131 +253,132 @@ Vite dev server `http://localhost:5555`'te çalışır, Rust host onu webview'e 
 npm run tauri:build
 ```
 
-Çıktılar:
+Artifacts:
 - macOS app: `src-tauri/target/release/bundle/macos/pb-panel.app`
 - macOS DMG: `src-tauri/target/release/bundle/dmg/pb-panel_*.dmg`
 - Windows MSI: `src-tauri/target/release/bundle/msi/pb-panel_*.msi`
 
-### Auto-updater imzalama (maintainer'lar için)
+### Auto-updater signing (for maintainers)
 
-v0.8 ile release'ler minisign ile imzalanır. İlk kez setup için:
+From v0.8 onward, releases are signed with minisign. First-time setup:
 
 ```bash
-# 1. Key çifti üret (bir kez, sonra kaybetme!)
+# 1. Generate a key pair (do this once, don't lose it!)
 npx tauri signer generate -w ~/.tauri/pb-panel.key --ci
 
-# 2. Public key içeriğini kopyala
+# 2. Copy the public key contents
 cat ~/.tauri/pb-panel.key.pub
-# → bunu src-tauri/tauri.conf.json'daki plugins.updater.pubkey'e yapıştır
+# → paste into src-tauri/tauri.conf.json under plugins.updater.pubkey
 
-# 3. Private key içeriğini GitHub repo secrets'a ekle
+# 3. Copy the private key contents into a GitHub repo secret
 cat ~/.tauri/pb-panel.key
 # → Repo Settings → Secrets and variables → Actions → New secret:
-#   TAURI_SIGNING_PRIVATE_KEY       = private key içeriği (base64)
-#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (boş bırak; key'de şifre yoksa)
+#   TAURI_SIGNING_PRIVATE_KEY         = private key contents (base64)
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (empty if the key has no password)
 ```
 
-Release akışı: `git tag v0.X.0 && git push --tags` → GitHub Actions `.github/workflows/release.yml` tetiklenir, iki platform (macos-14 arm64 + windows-latest) için build + imza + `latest.json` manifest + release yayınlar. Mevcut kullanıcıların paneli otomatik güncelleme sinyalini alır.
+Release flow: `git tag v0.X.0 && git push --tags` → GitHub Actions `.github/workflows/release.yml` runs → macos-14 arm64 + windows-latest builds → signs → publishes `latest.json` manifest with the DMG/MSI. Existing users get the auto-update signal.
 
-> **⚠ Private key kaybolursa:** yeni bir key çifti üretmek zorunda kalırsın, mevcut kullanıcılar eski imzalı paketleri kabul eder ama yenileri reddeder (public key değişmiş olur). O yüzden yedekle.
+> **⚠ If the private key is lost:** you'll have to generate a new pair; existing users keep accepting old signed packages but reject newer ones (public key mismatch). Back it up.
 
-### İkon yeniden üretimi
+### Regenerating icons
 
 ```bash
-# icon-source.svg'yi düzenle, sonra:
+# edit icon-source.svg, then:
 qlmanage -t -s 1024 -o . icon-source.svg           # macOS: SVG → PNG
-npx @tauri-apps/cli icon icon-source.svg.png       # tüm boyutlar için ikon üret
+npx @tauri-apps/cli icon icon-source.svg.png       # all target sizes
 ```
 
 ---
 
-## Mimari (özet)
+## Architecture (short version)
 
-| Katman | Teknoloji |
+| Layer | Tech |
 |---|---|
 | UI | React 18 + Vite 5 + TailwindCSS 3 |
-| Pencere + IPC | Tauri v2 (Rust host) |
-| Git işlemleri | `tokio::process::Command("git", …)` |
-| GitHub API | `reqwest` + hesap bazlı token |
-| Token saklama | `keyring` crate (Keychain / Credential Manager / libsecret) |
-| Config | JSON, atomic write (`.tmp + rename`) |
+| Window + IPC | Tauri v2 (Rust host) |
+| Git operations | `tokio::process::Command("git", …)` |
+| GitHub API | `reqwest` + per-account token |
+| Token storage | `keyring` crate (Keychain / Credential Manager / libsecret) |
+| Config | JSON file, atomic write (`.tmp + rename`) |
 | Auto-updater | `tauri-plugin-updater` v2 + minisign |
-| Bildirimler | `tauri-plugin-notification` (native OS) |
+| Notifications | `tauri-plugin-notification` (native OS) |
+| i18n | Lightweight homemade React context (TR + EN) |
 
-Rust tarafı libgit2 linklemek yerine `git` binary'sini çağırıyor — yani yerel `git`'in yaptığı her şeyi pb-panel de yapabilir, extra dependency yok, versiyon uyumsuzluğu yok.
+Rust shells out to `git` rather than linking libgit2 — anything your local `git` can do, pb-panel can do. No extra dependencies, no version skew.
 
-### Dosya haritası
+### File layout
 
 ```
 pb-panel/
 ├── src-tauri/
 │   ├── Cargo.toml                       ← Rust dependencies
 │   ├── tauri.conf.json                  ← Tauri config (updater, bundle, window)
-│   ├── capabilities/default.json        ← Plugin izinleri
+│   ├── capabilities/default.json        ← Plugin permissions
 │   └── src/
-│       ├── lib.rs                       ← Entry point, plugin setup, tüm #[tauri::command]
-│       ├── config.rs                    ← JSON config okuma/yazma
-│       ├── tokens.rs                    ← Keychain entegrasyonu
-│       ├── repo.rs                      ← Repo tarama + status
+│       ├── lib.rs                       ← Entry, plugin setup, all #[tauri::command]
+│       ├── config.rs                    ← JSON config read/write
+│       ├── tokens.rs                    ← Keychain integration
+│       ├── repo.rs                      ← Repo scan + status
 │       ├── git_ops.rs                   ← pull/fetch/clone/open-in-ide
-│       ├── branches.rs                  ← (v0.8) branch + stash
+│       ├── branches.rs                  ← (v0.8) branches + stash
 │       ├── conflicts.rs                 ← (v0.8) merge conflict handling
 │       ├── prs.rs                       ← (v0.8) PR CRUD + auto-merge
-│       └── github.rs                    ← Basit GitHub REST çağrıları (user, PR list, repo meta)
+│       └── github.rs                    ← Basic GitHub REST (user, PR list, repo meta)
 ├── client/src/
-│   ├── App.tsx                          ← Ana layout + updater check + notification hook
+│   ├── App.tsx                          ← Main layout + updater + notification hook
 │   ├── lib/
-│   │   ├── api.ts                       ← Tauri invoke wrapper'ları (tek-tipte)
-│   │   ├── types.ts                     ← TypeScript type tanımları
+│   │   ├── api.ts                       ← Typed Tauri invoke wrappers
+│   │   ├── types.ts                     ← TypeScript types
 │   │   ├── updater.ts                   ← (v0.8) checkForUpdate + installUpdate
-│   │   └── notifications.ts             ← (v0.8) diffAndNotify + permission yönetimi
+│   │   ├── notifications.ts             ← (v0.8) diffAndNotify + permission
+│   │   └── i18n.tsx                     ← (v0.8) TR/EN context + useT hook
 │   └── components/
 │       ├── Header.tsx, Sidebar.tsx, RepoCard.tsx, CloneDialog.tsx, SettingsPanel.tsx
-│       ├── RepoDrawer.tsx               ← 4 sekmeli detay panel
+│       ├── RepoDrawer.tsx               ← 4-tab detail panel
 │       ├── BranchesPanel.tsx            ← (v0.8)
 │       ├── PullRequestsPanel.tsx        ← (v0.8)
 │       ├── ConflictsPanel.tsx           ← (v0.8)
-│       └── UpdateModal.tsx              ← (v0.8) auto-update indirme modal'ı
+│       └── UpdateModal.tsx              ← (v0.8) auto-update install modal
 └── .github/workflows/release.yml        ← macOS arm64 + Windows x64 CI
 ```
 
 ---
 
-## Gizlilik
+## Privacy
 
-- Token'lar **her zaman** OS keychain'inde saklanır (Keychain / Credential Manager / libsecret)
-- Telemetri yok, backend yok, kendi token'ınla yaptığın GitHub API isteği dışında ağ trafiği yok
-- Clone URL'lerindeki token'lar loglardan maskelenir (`ghp_***`), log dosyalarına sızmaz
-- Auto-updater sadece GitHub releases'a bakar (`https://github.com/By-Taika/pb-panel/releases/...`); başka bir sunucuyla konuşmaz
-- İndirilen paketler minisign ile imzalıdır, tampered paket tespit edilir ve yüklenmez
-
----
-
-## Yol haritası
-
-v0.8 ile panel "kokpit" seviyesine geldi. Sonrası için düşünülen:
-
-- **CI status gösterimi** — PR listesinde "checks passing / failing / pending" rozetleri
-- **Pre-commit hook yönetimi** — husky/lefthook gibi araçlar için panel içi aç/kapa
-- **Multi-repo bulk operations** — seçili 5 repo'yu aynı anda fetch et, aynı branch'e geç
-- **Integration tests + release automation** — her PR'da e2e smoke test
-- **GH Actions log görüntüleme** — son run'un log'unu panel içinden oku (beklemesiz feedback)
-- **i18n** — EN + TR toggle (şu an Türkçe baskın)
-
-Katkı açık: issue aç, PR yolla, feature iste.
+- Tokens are **always** stored in the OS keychain (Keychain / Credential Manager / libsecret)
+- No telemetry, no backend, no network calls except direct GitHub API requests using your own token
+- Clone URLs have tokens masked in logs (`ghp_***`); tokens never leak to log files
+- Auto-updater talks only to GitHub releases (`https://github.com/By-Taika/pb-panel/releases/...`); no other server
+- Downloaded packages are signed with minisign; tampered packages are detected and refused
 
 ---
 
-## Destek
+## Roadmap
+
+v0.8 brings the app to "cockpit" level. What's next:
+
+- **CI status display** — pass/fail/pending badges on PR list rows
+- **Pre-commit hook management** — toggle husky/lefthook from inside the panel
+- **Multi-repo bulk operations** — fetch N selected repos, switch them all to the same branch
+- **Integration tests + release automation** — e2e smoke tests on every PR
+- **GH Actions log viewer** — read the last run's log from the panel without a browser
+
+Contributions welcome: open an issue, send a PR, request a feature.
+
+---
+
+## Support
 
 - **Bug / feature request** — [GitHub issues](https://github.com/By-Taika/pb-panel/issues)
-- **PR** — `main` branch'e ufak, odaklı değişiklikler tercih edilir
-- **Güvenlik problemi** — private issue veya maintainer'la direkt iletişim
+- **PR** — small, focused changes against `main`
+- **Security issue** — private issue or direct maintainer contact
 
 ---
 
-## Lisans
+## License
 
-MIT — detaylar [LICENSE](LICENSE) dosyasında.
+MIT — see [LICENSE](LICENSE).
 
-Built with Tauri · Açık kaynak, herkese açık · Issue ve PR'lar karşılanır.
+Built with Tauri · Open source, everyone welcome · Issues and PRs accepted.

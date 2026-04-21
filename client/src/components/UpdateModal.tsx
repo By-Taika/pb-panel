@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Update } from '@tauri-apps/plugin-updater';
 import { installUpdate } from '../lib/updater';
+import { useT } from '../lib/i18n';
 
 interface Props {
   update: Update;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function UpdateModal({ update, onDismiss }: Props) {
+  const t = useT();
   const [phase, setPhase] = useState<'idle' | 'downloading' | 'installing' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,6 @@ export function UpdateModal({ update, onDismiss }: Props) {
   };
 
   useEffect(() => {
-    // Prevent background click from closing during download.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && phase === 'idle') onDismiss();
     };
@@ -45,10 +46,10 @@ export function UpdateModal({ update, onDismiss }: Props) {
         <header className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-panel-accent to-panel-accent2 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">↑</div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-panel-text">Yeni sürüm var</h2>
+            <h2 className="text-sm font-bold text-panel-text">{t('update.title')}</h2>
             <div className="text-xs text-panel-muted mt-0.5">
               {update.currentVersion} → <span className="text-panel-accent font-mono">{update.version}</span>
-              {update.date && ` · ${new Date(update.date).toLocaleDateString('tr-TR')}`}
+              {update.date && ` · ${new Date(update.date).toLocaleDateString()}`}
             </div>
           </div>
         </header>
@@ -62,14 +63,14 @@ export function UpdateModal({ update, onDismiss }: Props) {
         {phase === 'idle' && (
           <>
             <p className="text-xs text-panel-muted mb-4">
-              Güncelleme indirildikten sonra panel yeniden başlayacak. Açık işlerin kaybolmaz ama yeniden açmak gerekebilir.
+              {t('update.explanation')}
             </p>
             <div className="flex items-center justify-end gap-2">
               <button onClick={onDismiss} className="btn-ghost">
-                Sonra
+                {t('update.later')}
               </button>
               <button onClick={go} className="btn-primary">
-                İndir ve yükle
+                {t('update.cta')}
               </button>
             </div>
           </>
@@ -78,7 +79,7 @@ export function UpdateModal({ update, onDismiss }: Props) {
         {phase === 'downloading' && (
           <div>
             <div className="flex items-center justify-between text-xs text-panel-muted mb-1">
-              <span>İndiriliyor…</span>
+              <span>{t('update.downloading')}</span>
               <span className="font-mono">{progress}%</span>
             </div>
             <div className="h-2 bg-panel-raised rounded overflow-hidden">
@@ -91,15 +92,15 @@ export function UpdateModal({ update, onDismiss }: Props) {
         )}
 
         {phase === 'installing' && (
-          <div className="text-xs text-panel-muted">Yükleniyor, birazdan yeniden başlatılacak…</div>
+          <div className="text-xs text-panel-muted">{t('update.installing')}</div>
         )}
 
         {phase === 'error' && (
           <div>
-            <div className="text-xs text-panel-danger mb-3">Güncelleme hatası: {error}</div>
+            <div className="text-xs text-panel-danger mb-3">{t('update.error', { err: error || '' })}</div>
             <div className="flex items-center justify-end gap-2">
-              <button onClick={onDismiss} className="btn-ghost">Kapat</button>
-              <button onClick={() => setPhase('idle')} className="btn-primary">Tekrar dene</button>
+              <button onClick={onDismiss} className="btn-ghost">{t('update.close')}</button>
+              <button onClick={() => setPhase('idle')} className="btn-primary">{t('update.retry')}</button>
             </div>
           </div>
         )}

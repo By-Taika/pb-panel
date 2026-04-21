@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { RepoInfo } from '../lib/types';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { RepoDrawer } from './RepoDrawer';
 
 interface RepoCardProps {
@@ -10,6 +11,7 @@ interface RepoCardProps {
 }
 
 export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
+  const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
 
@@ -66,18 +68,18 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
             {repo.branch}
           </span>
         )}
-        {repo.dirty > 0 && <span className="chip border-panel-warn/40 text-panel-warn">● {repo.dirty} dirty</span>}
+        {repo.dirty > 0 && <span className="chip border-panel-warn/40 text-panel-warn">● {repo.dirty} {t('repoCard.dirty')}</span>}
         {repo.ahead > 0 && <span className="chip border-panel-accent/40 text-panel-accent">↑ {repo.ahead}</span>}
         {repo.behind > 0 && <span className="chip border-panel-danger/40 text-panel-danger">↓ {repo.behind}</span>}
         {!repo.hasUpstream && repo.branch && (
-          <span className="chip border-panel-border text-panel-muted">no upstream</span>
+          <span className="chip border-panel-border text-panel-muted">{t('repoCard.noUpstream')}</span>
         )}
         {repo.remoteUpdates != null && repo.remoteUpdates > 0 && (
           <span
             className="chip border-panel-accent/40 text-panel-accent"
-            title={`Remote'da yeni commit var (fetch edilmedi):\n${repo.updatedBranches.join('\n')}`}
+            title={t('repoCard.remoteUpdatesTitle', { branches: repo.updatedBranches.join('\n') })}
           >
-            ↯ {repo.remoteUpdates} update
+            ↯ {repo.remoteUpdates} {t('repoCard.updates')}
           </span>
         )}
       </div>
@@ -100,26 +102,26 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
           onClick={() => run('pull', () => api.pull(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'pull' ? <span className="spinner" /> : <span>↓</span>} Pull
+          {busy === 'pull' ? <span className="spinner" /> : <span>↓</span>} {t('repoCard.pull')}
         </button>
         <button
           className="btn-ghost"
           onClick={() => run('fetch', () => api.fetchRemote(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'fetch' ? <span className="spinner" /> : <span>⟳</span>} Fetch
+          {busy === 'fetch' ? <span className="spinner" /> : <span>⟳</span>} {t('repoCard.fetch')}
         </button>
         <button
           className="btn-ghost"
           onClick={() => run('open', () => api.openIde(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >
-          {busy === 'open' ? <span className="spinner" /> : <span>⎋</span>} Open
+          {busy === 'open' ? <span className="spinner" /> : <span>⎋</span>} {t('repoCard.open')}
         </button>
         <button
           className="btn-ghost ml-auto"
           onClick={() => setShowDrawer(true)}
-          title="Geçmiş & PR'lar"
+          title={t('repoCard.detail')}
         >
           ⓘ
         </button>

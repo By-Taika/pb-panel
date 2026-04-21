@@ -1,4 +1,5 @@
 import type { AccountConfig, AccountsInfo } from '../lib/types';
+import { useI18n } from '../lib/i18n';
 
 interface HeaderProps {
   configuredAccounts: AccountConfig[];
@@ -19,6 +20,9 @@ export function Header({
   onSettings,
   refreshing,
 }: HeaderProps) {
+  const { lang, setLang, t } = useI18n();
+  const nextLang = lang === 'tr' ? 'en' : 'tr';
+
   return (
     <header className="sticky top-0 z-10 backdrop-blur-xl bg-panel-bg/80 border-b border-panel-border">
       <div className="px-6 py-3 flex items-center gap-4">
@@ -26,7 +30,7 @@ export function Header({
           <div className="w-6 h-6 rounded bg-gradient-to-br from-panel-accent to-panel-accent2" />
           <span className="font-mono text-sm font-bold tracking-wider text-panel-text">pb-panel</span>
           <span className="text-xs text-panel-muted">· ProjectBase</span>
-          <span className="text-xs text-panel-muted ml-3">{totalRepos} repo</span>
+          <span className="text-xs text-panel-muted ml-3">{totalRepos} {t('header.repos')}</span>
         </div>
 
         <div className="flex-1" />
@@ -42,16 +46,25 @@ export function Header({
           ))}
         </div>
 
+        <button
+          onClick={() => setLang(nextLang)}
+          className="btn-ghost !px-2 font-mono text-[11px]"
+          title={t('header.toggleLanguage')}
+          aria-label={t('header.language')}
+        >
+          🌐 {lang.toUpperCase()}
+        </button>
+
         <button onClick={onRefresh} className="btn-ghost" disabled={refreshing}>
           <span className={refreshing ? 'animate-spin inline-block' : ''}>↻</span>
-          {refreshing ? 'Yenileniyor' : 'Yenile'}
+          {refreshing ? t('header.refreshing') : t('header.refresh')}
         </button>
 
         <button onClick={onClone} className="btn-primary">
-          <span>+</span> Clone
+          <span>+</span> {t('header.clone')}
         </button>
 
-        <button onClick={onSettings} className="btn-ghost" title="Ayarlar">
+        <button onClick={onSettings} className="btn-ghost" title={t('header.settings')}>
           ⚙
         </button>
       </div>

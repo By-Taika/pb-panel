@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import type { Commit, ConflictState, RepoInfo, RepoMeta } from '../lib/types';
 import { BranchesPanel } from './BranchesPanel';
 import { PullRequestsPanel } from './PullRequestsPanel';
@@ -15,6 +16,7 @@ interface Props {
 type Tab = 'overview' | 'branches' | 'prs' | 'conflicts';
 
 export function RepoDrawer({ repo, onClose, onToast, onRefresh }: Props) {
+  const t = useT();
   const [tab, setTab] = useState<Tab>('overview');
   const [conflictBadge, setConflictBadge] = useState<ConflictState | null>(null);
 
@@ -63,20 +65,20 @@ export function RepoDrawer({ repo, onClose, onToast, onRefresh }: Props) {
               </a>
             )}
           </div>
-          <button onClick={onClose} className="btn-ghost !py-1 !px-2" title="Close (Esc)">
+          <button onClick={onClose} className="btn-ghost !py-1 !px-2" title={t('drawer.close')}>
             ✕
           </button>
         </header>
 
         <nav className="flex border-b border-panel-border bg-panel-bg text-xs">
           <TabButton active={tab === 'overview'} onClick={() => setTab('overview')}>
-            Genel bakış
+            {t('drawer.tab.overview')}
           </TabButton>
           <TabButton active={tab === 'branches'} onClick={() => setTab('branches')}>
-            Branches
+            {t('drawer.tab.branches')}
           </TabButton>
           <TabButton active={tab === 'prs'} onClick={() => setTab('prs')}>
-            PR
+            {t('drawer.tab.prs')}
           </TabButton>
           <TabButton
             active={tab === 'conflicts'}
@@ -84,7 +86,7 @@ export function RepoDrawer({ repo, onClose, onToast, onRefresh }: Props) {
             badge={conflictActive ? conflictCount || '!' : undefined}
             highlight={conflictActive}
           >
-            Çakışmalar
+            {t('drawer.tab.conflicts')}
           </TabButton>
         </nav>
 
@@ -136,6 +138,7 @@ function TabButton({
 }
 
 function OverviewTab({ repo }: { repo: RepoInfo }) {
+  const t = useT();
   const [commits, setCommits] = useState<Commit[] | null>(null);
   const [meta, setMeta] = useState<RepoMeta | null | 'loading'>('loading');
   const [err, setErr] = useState<string | null>(null);
@@ -165,7 +168,7 @@ function OverviewTab({ repo }: { repo: RepoInfo }) {
     <div className="space-y-5">
       {/* GitHub meta */}
       <section>
-        <SectionHeader title="GitHub" loading={meta === 'loading'} />
+        <SectionHeader title={t('overview.github')} loading={meta === 'loading'} />
         {meta === 'loading' ? (
           <div className="grid grid-cols-2 gap-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -173,16 +176,16 @@ function OverviewTab({ repo }: { repo: RepoInfo }) {
             ))}
           </div>
         ) : meta === null ? (
-          <div className="text-xs text-panel-muted">GitHub meta erişilemedi (token/özel repo?)</div>
+          <div className="text-xs text-panel-muted">{t('overview.githubUnavailable')}</div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <Stat label="default" value={meta.defaultBranch} />
-              <Stat label="stars" value={String(meta.stars)} />
-              <Stat label="open issues" value={String(meta.openIssues)} />
-              <Stat label="visibility" value={meta.private ? 'private' : 'public'} />
-              {meta.language && <Stat label="language" value={meta.language} />}
-              <Stat label="pushed" value={new Date(meta.pushedAt).toLocaleString('tr-TR')} />
+              <Stat label={t('overview.stat.default')} value={meta.defaultBranch} />
+              <Stat label={t('overview.stat.stars')} value={String(meta.stars)} />
+              <Stat label={t('overview.stat.openIssues')} value={String(meta.openIssues)} />
+              <Stat label={t('overview.stat.visibility')} value={meta.private ? t('overview.visibility.private') : t('overview.visibility.public')} />
+              {meta.language && <Stat label={t('overview.stat.language')} value={meta.language} />}
+              <Stat label={t('overview.stat.pushed')} value={new Date(meta.pushedAt).toLocaleString()} />
             </div>
             {meta.description && (
               <p className="text-xs text-panel-muted mt-2">{meta.description}</p>
@@ -193,20 +196,20 @@ function OverviewTab({ repo }: { repo: RepoInfo }) {
 
       {/* Local state */}
       <section>
-        <SectionHeader title="Lokal durum" />
+        <SectionHeader title={t('overview.localState')} />
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <Stat label="branch" value={repo.branch || '—'} />
-          <Stat label="dirty files" value={String(repo.dirty)} />
-          <Stat label="ahead" value={String(repo.ahead)} />
-          <Stat label="behind" value={String(repo.behind)} />
-          <Stat label="remote updates" value={repo.remoteUpdates === null ? '—' : String(repo.remoteUpdates)} />
-          <Stat label="account" value={repo.account} />
+          <Stat label={t('overview.stat.branch')} value={repo.branch || '—'} />
+          <Stat label={t('overview.stat.dirtyFiles')} value={String(repo.dirty)} />
+          <Stat label={t('overview.stat.ahead')} value={String(repo.ahead)} />
+          <Stat label={t('overview.stat.behind')} value={String(repo.behind)} />
+          <Stat label={t('overview.stat.remoteUpdates')} value={repo.remoteUpdates === null ? '—' : String(repo.remoteUpdates)} />
+          <Stat label={t('overview.stat.account')} value={repo.account} />
         </div>
       </section>
 
       {/* Commit history */}
       <section>
-        <SectionHeader title="Commit history" loading={commits === null && !err} />
+        <SectionHeader title={t('overview.commitHistory')} loading={commits === null && !err} />
         {err ? (
           <div className="text-xs text-panel-danger">{err}</div>
         ) : commits === null ? (
@@ -219,7 +222,7 @@ function OverviewTab({ repo }: { repo: RepoInfo }) {
             ))}
           </ol>
         ) : commits.length === 0 ? (
-          <div className="text-xs text-panel-muted">Henüz commit yok</div>
+          <div className="text-xs text-panel-muted">{t('overview.noCommits')}</div>
         ) : (
           <ol className="space-y-2">
             {commits.map((c) => (

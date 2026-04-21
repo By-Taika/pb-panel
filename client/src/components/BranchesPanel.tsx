@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import type { BranchInfo, RepoInfo, StashEntry } from '../lib/types';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function BranchesPanel({ repo, onToast, onChanged }: Props) {
+  const t = useT();
   const [branches, setBranches] = useState<BranchInfo[] | null>(null);
   const [stashes, setStashes] = useState<StashEntry[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
     try {
       const res: any = await fn();
       const ok = res?.ok !== false;
-      onToast(ok ? okMsg : (res?.output || 'hata'), ok);
+      onToast(ok ? okMsg : (res?.output || 'error'), ok);
       reload();
       onChanged();
     } catch (e: any) {
@@ -47,9 +49,9 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
       {/* Branch creation */}
       <section>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[10px] uppercase tracking-widest text-panel-muted">Branches</h3>
+          <h3 className="text-[10px] uppercase tracking-widest text-panel-muted">{t('branches.title')}</h3>
           <button onClick={() => setShowCreate((v) => !v)} className="btn-ghost !py-0.5 !px-2 !text-[10px]">
-            {showCreate ? '×' : '+ Yeni'}
+            {showCreate ? t('branches.closeForm') : t('branches.newButton')}
           </button>
         </div>
 
@@ -57,7 +59,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
           <div className="flex gap-2 mb-3">
             <input
               type="text"
-              placeholder="feature/yeni-isim"
+              placeholder={t('branches.newPlaceholder')}
               className="input flex-1 !py-1 !text-xs"
               value={newBranchName}
               onChange={(e) => setNewBranchName(e.target.value)}
@@ -66,7 +68,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                   wrap(
                     'create',
                     () => api.createBranch(repo.category, repo.name, repo.subCategory, newBranchName.trim(), true),
-                    `${newBranchName} oluşturuldu`
+                    t('branches.created', { name: newBranchName.trim() })
                   );
                   setNewBranchName('');
                   setShowCreate(false);
@@ -80,13 +82,13 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                 wrap(
                   'create',
                   () => api.createBranch(repo.category, repo.name, repo.subCategory, newBranchName.trim(), true),
-                  `${newBranchName} oluşturuldu`
+                  t('branches.created', { name: newBranchName.trim() })
                 );
                 setNewBranchName('');
                 setShowCreate(false);
               }}
             >
-              Oluştur + checkout
+              {t('branches.createAndCheckout')}
             </button>
           </div>
         )}
@@ -98,7 +100,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
             ))}
           </div>
         ) : localBranches.length === 0 ? (
-          <div className="text-xs text-panel-muted">Yerel branch yok</div>
+          <div className="text-xs text-panel-muted">{t('branches.noLocal')}</div>
         ) : (
           <ul className="space-y-1">
             {localBranches.map((b) => (
@@ -109,17 +111,17 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                 onCheckout={() =>
                   wrap(`co-${b.name}`, () =>
                     api.checkoutBranch(repo.category, repo.name, repo.subCategory, b.name),
-                  `${b.name} checkout edildi`)
+                  t('branches.checkedOut', { name: b.name }))
                 }
                 onPush={() =>
                   wrap(`push-${b.name}`, () =>
                     api.pushBranch(repo.category, repo.name, repo.subCategory, b.name, !b.upstream),
-                  `${b.name} push edildi`)
+                  t('branches.pushed', { name: b.name }))
                 }
                 onDelete={(force) =>
                   wrap(`del-${b.name}`, () =>
                     api.deleteBranch(repo.category, repo.name, repo.subCategory, b.name, force),
-                  `${b.name} silindi`)
+                  t('branches.deleted', { name: b.name }))
                 }
               />
             ))}
@@ -131,7 +133,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
       {remoteBranches.length > 0 && (
         <section>
           <h3 className="text-[10px] uppercase tracking-widest text-panel-muted mb-2">
-            Remote ({remoteBranches.length})
+            {t('branches.remoteCount', { n: remoteBranches.length })}
           </h3>
           <ul className="space-y-1 max-h-52 overflow-y-auto">
             {remoteBranches.map((b) => (
@@ -146,16 +148,15 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                   className="btn-ghost !py-0 !px-1.5 !text-[10px]"
                   disabled={busy !== null}
                   onClick={() => {
-                    // Local branch name = whatever follows the first "/" (origin/feature/x → feature/x).
                     const local = b.name.includes('/') ? b.name.split('/').slice(1).join('/') : b.name;
                     wrap(
                       `track-${b.name}`,
                       () => api.checkoutBranch(repo.category, repo.name, repo.subCategory, local),
-                      `${local} local olarak oluşturuldu + checkout edildi`
+                      t('branches.remoteCheckedOut', { name: local })
                     );
                   }}
                 >
-                  checkout
+                  {t('branches.remoteCheckout')}
                 </button>
               </li>
             ))}
@@ -167,7 +168,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
       <section>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[10px] uppercase tracking-widest text-panel-muted">
-            Stash{stashes && stashes.length > 0 ? ` (${stashes.length})` : ''}
+            {stashes && stashes.length > 0 ? t('branches.stashTitleN', { n: stashes.length }) : t('branches.stashTitle')}
           </h3>
           <button
             className="btn-ghost !py-0.5 !px-2 !text-[10px]"
@@ -175,18 +176,18 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
             onClick={() =>
               wrap('stash-save', () =>
                 api.stashSave(repo.category, repo.name, repo.subCategory, `pb-panel ${new Date().toISOString()}`),
-              'stash kaydedildi')
+              t('branches.stashSaved'))
             }
-            title={repo.dirty === 0 ? 'Kirli değişiklik yok' : 'Değişiklikleri stash\'le'}
+            title={repo.dirty === 0 ? t('branches.noDirty') : t('branches.stashDirtyTitle')}
           >
-            Stash değişiklikleri
+            {t('branches.stashSave')}
           </button>
         </div>
 
         {stashes === null ? (
-          <div className="text-xs text-panel-muted">Yükleniyor…</div>
+          <div className="text-xs text-panel-muted">{t('branches.loading')}</div>
         ) : stashes.length === 0 ? (
-          <div className="text-xs text-panel-muted">Stash yok</div>
+          <div className="text-xs text-panel-muted">{t('branches.noStashes')}</div>
         ) : (
           <ul className="space-y-1">
             {stashes.map((s) => (
@@ -204,7 +205,7 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                     onClick={() =>
                       wrap(`pop-${s.index}`, () =>
                         api.stashPop(repo.category, repo.name, repo.subCategory, s.index),
-                      'stash pop edildi')
+                      t('branches.stashPopped'))
                     }
                   >
                     pop
@@ -213,10 +214,10 @@ export function BranchesPanel({ repo, onToast, onChanged }: Props) {
                     className="btn-ghost !py-0 !px-1.5 !text-[10px] text-panel-danger"
                     disabled={busy !== null}
                     onClick={() => {
-                      if (!confirm(`stash@{${s.index}} silinsin mi?`)) return;
+                      if (!confirm(t('branches.stashDropConfirm', { idx: s.index }))) return;
                       wrap(`drop-${s.index}`, () =>
                         api.stashDrop(repo.category, repo.name, repo.subCategory, s.index),
-                      'stash silindi');
+                      t('branches.stashDropped'));
                     }}
                   >
                     ×
@@ -240,6 +241,7 @@ interface BranchRowProps {
 }
 
 function BranchRow({ branch, busy, onCheckout, onPush, onDelete }: BranchRowProps) {
+  const t = useT();
   const disabled = busy !== null;
   return (
     <li
@@ -275,22 +277,27 @@ function BranchRow({ branch, busy, onCheckout, onPush, onDelete }: BranchRowProp
 
       <div className="flex items-center gap-1 flex-shrink-0">
         {!branch.isCurrent && (
-          <button onClick={onCheckout} disabled={disabled} className="btn-ghost !py-0 !px-1.5 !text-[10px]" title="checkout">
+          <button onClick={onCheckout} disabled={disabled} className="btn-ghost !py-0 !px-1.5 !text-[10px]" title={t('branches.tipCheckout')}>
             →
           </button>
         )}
-        <button onClick={onPush} disabled={disabled} className="btn-ghost !py-0 !px-1.5 !text-[10px]" title={branch.upstream ? 'push' : 'push -u origin'}>
+        <button
+          onClick={onPush}
+          disabled={disabled}
+          className="btn-ghost !py-0 !px-1.5 !text-[10px]"
+          title={branch.upstream ? t('branches.tipPush') : t('branches.tipPushUpstream')}
+        >
           ↑
         </button>
         {!branch.isCurrent && (
           <button
             onClick={() => {
-              if (!confirm(`${branch.name} silinsin mi?`)) return;
+              if (!confirm(t('branches.deleteConfirm', { name: branch.name }))) return;
               onDelete(false);
             }}
             disabled={disabled}
             className="btn-ghost !py-0 !px-1.5 !text-[10px] text-panel-danger"
-            title="delete"
+            title={t('branches.tipDelete')}
           >
             ×
           </button>

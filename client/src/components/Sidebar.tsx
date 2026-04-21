@@ -1,4 +1,5 @@
 import type { Category, CategoryConfig, RepoInfo } from '../lib/types';
+import { useT } from '../lib/i18n';
 
 interface SidebarProps {
   categories: CategoryConfig[];
@@ -8,6 +9,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ categories, repos, selected, onSelect }: SidebarProps) {
+  const t = useT();
   const total = Object.values(repos).reduce((s, list) => s + list.length, 0);
   const dirtyTotal = Object.values(repos)
     .flat()
@@ -16,15 +18,15 @@ export function Sidebar({ categories, repos, selected, onSelect }: SidebarProps)
   return (
     <aside className="w-56 shrink-0 border-r border-panel-border p-4 space-y-1">
       <div className="text-[10px] font-mono uppercase tracking-wider text-panel-muted mb-2 px-2">
-        Kategoriler
+        {t('sidebar.categories')}
       </div>
 
       <SideItem
         active={selected === 'all'}
         onClick={() => onSelect('all')}
-        label="Tümü"
+        label={t('sidebar.allTitle')}
         count={total}
-        badge={dirtyTotal > 0 ? `${dirtyTotal} aktif` : undefined}
+        badge={dirtyTotal > 0 ? t('sidebar.activeBadge', { n: dirtyTotal }) : undefined}
         tone="accent"
       />
 
@@ -32,14 +34,13 @@ export function Sidebar({ categories, repos, selected, onSelect }: SidebarProps)
 
       {categories.length === 0 && (
         <div className="text-xs text-panel-muted px-2">
-          Henüz kategori yok. Ayarlar'dan ekle.
+          {t('sidebar.empty')}
         </div>
       )}
 
       {categories.map((cat, i) => {
         const list = repos[cat.name] || [];
         const dirty = list.filter((r) => r.dirty > 0 || r.ahead > 0 || r.behind > 0).length;
-        // Alternate tone by position so neighbouring categories look distinct.
         const tone: 'accent' | 'accent2' = i % 2 === 0 ? 'accent' : 'accent2';
         return (
           <SideItem

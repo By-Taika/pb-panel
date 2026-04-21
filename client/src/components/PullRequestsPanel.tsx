@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import type { MergeMethod, OpenPr, PrDetail, RepoInfo } from '../lib/types';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
+  const t = useT();
   const [list, setList] = useState<OpenPr[] | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [detail, setDetail] = useState<PrDetail | null>(null);
@@ -50,20 +52,20 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
   };
 
   if (!repo.owner || !repo.repoName) {
-    return <div className="text-xs text-panel-muted">Bu repo'nun GitHub remote'u yok (owner/repo okunamıyor).</div>;
+    return <div className="text-xs text-panel-muted">{t('prs.noRemote')}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-[10px] uppercase tracking-widest text-panel-muted">
-          Açık PR'lar{list ? ` (${list.length})` : ''}
+          {list ? t('prs.titleN', { n: list.length }) : t('prs.title')}
         </h3>
         <button
           className="btn-ghost !py-0.5 !px-2 !text-[10px]"
           onClick={() => setShowCreate((v) => !v)}
         >
-          {showCreate ? '×' : '+ Yeni PR'}
+          {showCreate ? t('prs.closeForm') : t('prs.newButton')}
         </button>
       </div>
 
@@ -81,9 +83,9 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
       )}
 
       {list === null ? (
-        <div className="text-xs text-panel-muted">Yükleniyor…</div>
+        <div className="text-xs text-panel-muted">{t('branches.loading')}</div>
       ) : list.length === 0 ? (
-        <div className="text-xs text-panel-muted">Açık PR yok</div>
+        <div className="text-xs text-panel-muted">{t('prs.noPrs')}</div>
       ) : (
         <ul className="space-y-2">
           {list.map((pr) => (
@@ -103,8 +105,8 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
                 <span className="flex-1 min-w-0">
                   <div className="text-panel-text truncate">{pr.title}</div>
                   <div className="text-[10px] text-panel-muted mt-0.5">
-                    {pr.author} · {new Date(pr.updated).toLocaleString('tr-TR')}
-                    {pr.draft && <span className="ml-2 chip border-panel-border text-panel-muted !text-[9px]">draft</span>}
+                    {pr.author} · {new Date(pr.updated).toLocaleString()}
+                    {pr.draft && <span className="ml-2 chip border-panel-border text-panel-muted !text-[9px]">{t('prs.draft')}</span>}
                   </div>
                 </span>
               </button>
@@ -112,19 +114,19 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
               {expanded === pr.number && (
                 <div className="border-t border-panel-border p-2.5 space-y-2">
                   {!detail ? (
-                    <div className="text-[10px] text-panel-muted">yükleniyor…</div>
+                    <div className="text-[10px] text-panel-muted">{t('prs.loadingDetail')}</div>
                   ) : (
                     <>
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <Stat label="head" value={detail.headRef} />
-                        <Stat label="base" value={detail.baseRef} />
-                        <Stat label="mergeable" value={mergeableLabel(detail.mergeable, detail.mergeableState)} />
-                        <Stat label="auto-merge" value={detail.autoMergeEnabled ? 'aktif' : 'kapalı'} />
+                        <Stat label={t('prs.stat.head')} value={detail.headRef} />
+                        <Stat label={t('prs.stat.base')} value={detail.baseRef} />
+                        <Stat label={t('prs.stat.mergeable')} value={mergeableLabel(detail.mergeable, detail.mergeableState, t)} />
+                        <Stat label={t('prs.stat.autoMerge')} value={detail.autoMergeEnabled ? t('prs.autoMergeOn') : t('prs.autoMergeOff')} />
                       </div>
 
                       {detail.body && (
                         <details className="text-[10px] text-panel-muted">
-                          <summary className="cursor-pointer">Açıklama</summary>
+                          <summary className="cursor-pointer">{t('prs.description')}</summary>
                           <pre className="whitespace-pre-wrap mt-1 bg-black/30 p-2 rounded max-h-40 overflow-y-auto">
                             {detail.body}
                           </pre>
@@ -139,26 +141,26 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
                             wrap(
                               `merge-${pr.number}-${method}`,
                               () => api.prMerge(repo.category, repo.name, repo.subCategory, pr.number, method),
-                              `PR #${pr.number} merge edildi (${method})`,
+                              t('prs.mergedOk', { n: pr.number, method }),
                             )
                           }
                           onEnableAuto={(method) =>
                             wrap(
                               `auto-${pr.number}`,
                               () => api.prEnableAutoMerge(repo.category, repo.name, repo.subCategory, pr.number, method),
-                              `PR #${pr.number} auto-merge aktif`,
+                              t('prs.autoEnabled', { n: pr.number }),
                             )
                           }
                           onDisableAuto={() =>
                             wrap(
                               `auto-off-${pr.number}`,
                               () => api.prDisableAutoMerge(repo.category, repo.name, repo.subCategory, pr.number),
-                              `PR #${pr.number} auto-merge iptal`,
+                              t('prs.autoDisabled', { n: pr.number }),
                             )
                           }
                         />
                         <a href={pr.url} target="_blank" rel="noreferrer" className="btn-ghost !py-0.5 !text-[10px]">
-                          GitHub'da aç ↗
+                          {t('prs.openInGithub')}
                         </a>
                       </div>
                     </>
@@ -173,10 +175,10 @@ export function PullRequestsPanel({ repo, onToast, onChanged }: Props) {
   );
 }
 
-function mergeableLabel(mergeable: boolean | null, state: string | null): string {
-  if (mergeable === true) return `temiz (${state || 'clean'})`;
-  if (mergeable === false) return `çakışma (${state || 'dirty'})`;
-  return state || 'hesaplanıyor';
+function mergeableLabel(mergeable: boolean | null, state: string | null, t: (k: string, v?: Record<string, string | number>) => string): string {
+  if (mergeable === true) return t('prs.mergeable.clean', { s: state || 'clean' });
+  if (mergeable === false) return t('prs.mergeable.conflict', { s: state || 'dirty' });
+  return state || t('prs.mergeable.calculating');
 }
 
 interface MergeActionsProps {
@@ -188,6 +190,7 @@ interface MergeActionsProps {
 }
 
 function MergeActions({ pr, busy, onMerge, onEnableAuto, onDisableAuto }: MergeActionsProps) {
+  const t = useT();
   const [method, setMethod] = useState<MergeMethod>('squash');
   const disabled = busy !== null || pr.draft;
   return (
@@ -205,12 +208,12 @@ function MergeActions({ pr, busy, onMerge, onEnableAuto, onDisableAuto }: MergeA
         className="btn-primary !py-0.5 !text-[10px]"
         disabled={disabled || pr.mergeable === false}
         onClick={() => {
-          if (!confirm(`PR #${pr.number} ${method} ile merge edilsin mi?`)) return;
+          if (!confirm(t('prs.mergeConfirm', { n: pr.number, method }))) return;
           onMerge(method);
         }}
-        title={pr.mergeable === false ? 'Çakışma var, merge edilemez' : ''}
+        title={pr.mergeable === false ? t('prs.mergeConflictTitle') : ''}
       >
-        Merge şimdi
+        {t('prs.mergeNow')}
       </button>
       {pr.autoMergeEnabled ? (
         <button
@@ -218,7 +221,7 @@ function MergeActions({ pr, busy, onMerge, onEnableAuto, onDisableAuto }: MergeA
           disabled={busy !== null}
           onClick={onDisableAuto}
         >
-          Auto-merge iptal
+          {t('prs.disableAuto')}
         </button>
       ) : (
         <button
@@ -226,7 +229,7 @@ function MergeActions({ pr, busy, onMerge, onEnableAuto, onDisableAuto }: MergeA
           disabled={disabled}
           onClick={() => onEnableAuto(method)}
         >
-          Auto-merge aç ({method})
+          {t('prs.enableAuto', { method })}
         </button>
       )}
     </>
@@ -241,6 +244,7 @@ interface CreatePrFormProps {
 }
 
 function CreatePrForm({ repo, onCancel, onCreated, onToast }: CreatePrFormProps) {
+  const t = useT();
   const [head, setHead] = useState(repo.branch || '');
   const [base, setBase] = useState('main');
   const [title, setTitle] = useState('');
@@ -250,13 +254,13 @@ function CreatePrForm({ repo, onCancel, onCreated, onToast }: CreatePrFormProps)
 
   const submit = async () => {
     if (!title.trim() || !head.trim() || !base.trim()) {
-      onToast('title / head / base zorunlu', false);
+      onToast(t('prs.form.required'), false);
       return;
     }
     setBusy(true);
     try {
       const pr = await api.prCreate(repo.category, repo.name, repo.subCategory, head.trim(), base.trim(), title.trim(), body.trim(), draft);
-      onToast(`PR #${pr.number} oluşturuldu`, true);
+      onToast(t('prs.form.created', { n: pr.number }), true);
       onCreated();
     } catch (e: any) {
       onToast(e?.message || String(e), false);
@@ -269,20 +273,20 @@ function CreatePrForm({ repo, onCancel, onCreated, onToast }: CreatePrFormProps)
     <div className="p-3 rounded border border-panel-border bg-panel-raised space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <label className="block text-[10px] text-panel-muted">
-          head branch
+          {t('prs.form.head')}
           <input className="input !py-1 !text-xs mt-0.5" value={head} onChange={(e) => setHead(e.target.value)} />
         </label>
         <label className="block text-[10px] text-panel-muted">
-          base branch
+          {t('prs.form.base')}
           <input className="input !py-1 !text-xs mt-0.5" value={base} onChange={(e) => setBase(e.target.value)} />
         </label>
       </div>
       <label className="block text-[10px] text-panel-muted">
-        Başlık
+        {t('prs.form.title')}
         <input className="input !py-1 !text-xs mt-0.5" value={title} onChange={(e) => setTitle(e.target.value)} />
       </label>
       <label className="block text-[10px] text-panel-muted">
-        Açıklama (markdown)
+        {t('prs.form.body')}
         <textarea
           className="input !py-1 !text-xs mt-0.5 h-24 font-mono"
           value={body}
@@ -292,14 +296,14 @@ function CreatePrForm({ repo, onCancel, onCreated, onToast }: CreatePrFormProps)
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-1.5 text-[10px] text-panel-muted">
           <input type="checkbox" checked={draft} onChange={(e) => setDraft(e.target.checked)} />
-          draft
+          {t('prs.form.draft')}
         </label>
         <div className="flex items-center gap-1.5">
           <button className="btn-ghost !py-1 !text-xs" onClick={onCancel} disabled={busy}>
-            İptal
+            {t('prs.form.cancel')}
           </button>
           <button className="btn-primary !py-1 !text-xs" onClick={submit} disabled={busy}>
-            PR oluştur
+            {t('prs.form.submit')}
           </button>
         </div>
       </div>

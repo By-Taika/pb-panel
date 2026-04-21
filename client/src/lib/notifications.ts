@@ -5,6 +5,8 @@ import {
 } from '@tauri-apps/plugin-notification';
 import type { RepoInfo } from './types';
 
+export type Translator = (key: string, vars?: Record<string, string | number>) => string;
+
 let cached: boolean | null = null;
 
 export async function ensureNotificationPermission(): Promise<boolean> {
@@ -35,12 +37,14 @@ export async function notify(title: string, body: string): Promise<void> {
 
 /**
  * Compare a fresh repos map against the previous snapshot and emit notifications
- * for things the user asked us to watch for — new behind commits and fresh dirty
- * files. First run (prev null) emits nothing so a cold start stays quiet.
+ * for meaningful changes. First run (prev null) emits nothing so a cold start
+ * stays quiet. The translator is injected from the caller so notifications match
+ * the user's current UI language.
  */
 export function diffAndNotify(
   prev: Record<string, RepoInfo[]> | null,
   next: Record<string, RepoInfo[]>,
+  t: Translator,
 ) {
   if (!prev) return;
 
@@ -51,27 +55,24 @@ export function diffAndNotify(
     const old = prevMap.get(cur.id);
     if (!old) continue;
 
-    // New remote commits surfaced on a previously synced repo.
     if ((old.behind || 0) === 0 && (cur.behind || 0) > 0) {
       notify(
-        'Yeni commit var',
-        `${cur.name} ${cur.behind} commit geride. Pull etmek ister misin?`,
+        t('notif.newCommit.title'),
+        t('notif.newCommit.body', { name: cur.name, n: cur.behind }),
       );
     }
-    // A repo that was clean is now dirty — helpful before shutdown.
     if ((old.dirty || 0) === 0 && (cur.dirty || 0) > 0) {
       notify(
-        'Uncommitted değişiklik',
-        `${cur.name} içinde ${cur.dirty} dosya değişmiş, henüz commit edilmemiş.`,
+        t('notif.dirty.title'),
+        t('notif.dirty.body', { name: cur.name, n: cur.dirty }),
       );
     }
-    // Remote has updates that haven't been fetched yet.
     const oldRemote = old.remoteUpdates ?? 0;
     const newRemote = cur.remoteUpdates ?? 0;
     if (oldRemote === 0 && newRemote > 0) {
       notify(
-        'Remote güncellendi',
-        `${cur.name} için upstream'de yeni iş var (${cur.updatedBranches.join(', ')}).`,
+        t('notif.remote.title'),
+        t('notif.remote.body', { name: cur.name, branches: cur.updatedBranches.join(', ') }),
       );
     }
   }
