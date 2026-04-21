@@ -1,6 +1,6 @@
 {
   "name": "pb-panel",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "private": true,
   "type": "module",
   "description": "Local desktop dashboard for ProjectBase repos (dual GitHub identity)",
