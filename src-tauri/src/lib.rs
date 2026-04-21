@@ -230,6 +230,19 @@ async fn repo_fetch(
 }
 
 #[tauri::command]
+async fn repo_push(
+    store: State<'_, ConfigStore>,
+    category: String,
+    name: String,
+    sub: Option<String>,
+) -> Result<git_ops::ActionResult, String> {
+    let cfg = store.snapshot();
+    guard_category(&cfg, &category)?;
+    let path = repo_path_for(&cfg, &category, sub.as_deref(), &name);
+    Ok(git_ops::push(&path).await)
+}
+
+#[tauri::command]
 async fn repo_open(
     store: State<'_, ConfigStore>,
     category: String,
@@ -752,6 +765,7 @@ pub fn run() {
             repo_log,
             repo_pull,
             repo_fetch,
+            repo_push,
             repo_open,
             repo_clone,
             list_subfolders,

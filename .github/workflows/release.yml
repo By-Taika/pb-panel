@@ -79,7 +79,14 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --target ${{ matrix.target }}
+        run: |
+          # Sanity check — env var'ın dolu gelip gelmediğini doğrula (değeri yazmıyoruz, sadece uzunluk).
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is empty! Updater artifacts will not be signed."
+            exit 1
+          fi
+          echo "Signing key present (length=${#TAURI_SIGNING_PRIVATE_KEY})"
+          npx tauri build --target ${{ matrix.target }}
 
       # Bundle içeriğini listele — hangi artifact'lar üretildi görebilelim.
       - name: List bundle outputs

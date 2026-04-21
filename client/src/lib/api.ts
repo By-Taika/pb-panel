@@ -69,6 +69,9 @@ export const api = {
   fetchRemote(category: Category, name: string, sub?: string | null): Promise<ActionResult> {
     return invoke<ActionResult>('repo_fetch', { category, name, sub: sub ?? null });
   },
+  push(category: Category, name: string, sub?: string | null): Promise<ActionResult> {
+    return invoke<ActionResult>('repo_push', { category, name, sub: sub ?? null });
+  },
   openIde(category: Category, name: string, sub?: string | null, ide?: string): Promise<ActionResult> {
     return invoke<ActionResult>('repo_open', { category, name, sub: sub ?? null, ide: ide ?? null });
   },

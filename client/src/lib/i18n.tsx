@@ -36,6 +36,7 @@ const T: Translations = {
   // --- RepoCard ---
   'repoCard.pull': { tr: 'Pull', en: 'Pull' },
   'repoCard.fetch': { tr: 'Fetch', en: 'Fetch' },
+  'repoCard.push': { tr: 'Push', en: 'Push' },
   'repoCard.open': { tr: 'Open', en: 'Open' },
   'repoCard.detail': { tr: 'Geçmiş & PR\'lar', en: 'History & PRs' },
   'repoCard.dirty': { tr: 'dirty', en: 'dirty' },

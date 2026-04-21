@@ -113,6 +113,15 @@ export function RepoCard({ repo, onAction, onRefresh }: RepoCardProps) {
         </button>
         <button
           className="btn-ghost"
+          onClick={() => run('push', () => api.push(repo.category, repo.name, repo.subCategory))}
+          disabled={busy !== null || repo.ahead === 0}
+          title={repo.ahead === 0 ? 'ahead = 0, push\'a gerek yok' : `Push ${repo.ahead} commit`}
+        >
+          {busy === 'push' ? <span className="spinner" /> : <span>↑</span>} {t('repoCard.push')}
+          {repo.ahead > 0 && <span className="ml-1 text-[10px] font-mono text-panel-accent">{repo.ahead}</span>}
+        </button>
+        <button
+          className="btn-ghost"
           onClick={() => run('open', () => api.openIde(repo.category, repo.name, repo.subCategory))}
           disabled={busy !== null}
         >

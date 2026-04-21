@@ -81,6 +81,13 @@ pub async fn fetch(repo_path: &Path) -> ActionResult {
     run_git(Some(repo_path), &["fetch", "--all", "--prune"]).await
 }
 
+pub async fn push(repo_path: &Path) -> ActionResult {
+    // Plain `git push` — pushes the current branch to its tracked upstream.
+    // If there's no upstream yet, this fails with a clear error; the user
+    // can then use the Branches tab to run `push -u origin <branch>`.
+    run_git(Some(repo_path), &["push"]).await
+}
+
 pub async fn log_commits(repo_path: &Path, limit: u32) -> Vec<serde_json::Value> {
     let lim = limit.to_string();
     let out = Command::new("git")

@@ -2,6 +2,20 @@
 
 Bu dosya pb-panel'in her sürümünde neyin değiştiğini listeler. Format [Keep a Changelog](https://keepachangelog.com/) temelli, sürüm numaraları [SemVer](https://semver.org/).
 
+## [0.8.3] — 2026-04-21
+
+İki somut değişiklik:
+
+### Push butonu
+Her repo kartında artık `↑ Push` butonu var — commit'lediğin değişiklikleri drawer'a girmeden doğrudan push edebilirsin. Buton ahead=0 olan repolarda devre dışı. ahead>0 ise commit sayısı buton üzerinde küçük rakamla gösteriliyor.
+
+Upstream yoksa error döner; bu durumda Branches sekmesinde `push -u origin <branch>` ile devam edersin.
+
+### Auto-updater — 3. deneme (nihayet)
+v0.8.2'de `.sig` dosyaları üretilmedi çünkü `bundle.createUpdaterArtifacts: true` explicit olarak set edilmemişti. Tauri v2'de updater artifact üretimi için bunun açık olması gerek.
+
+`tauri.conf.json`'a eklendi + CI'da env var sanity check eklendi (boş ise build erken fail eder). v0.8.3'ten itibaren auto-updater'ın tam çalışması bekleniyor.
+
 ## [0.8.2] — 2026-04-21
 
 v0.8.1'deki auto-updater fix'i yeterli değildi — `tauri-action` post-upload'da `.sig` ve `.nsis.zip` dosyalarını build dizininden temizliyordu, bizim manuel upload step'imiz ulaşamıyordu.
