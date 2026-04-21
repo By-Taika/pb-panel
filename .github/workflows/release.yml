@@ -97,6 +97,17 @@ jobs:
           echo "--- bundle root ---"
           ls -la "src-tauri/target/${{ matrix.target }}/release/bundle/" || true
 
+      # macOS tarafında Gatekeeper workaround script'ini release'e ekle.
+      - name: Upload Gatekeeper helper (macOS only)
+        if: matrix.platform == 'macos-14'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          gh release upload "$TAG" scripts/fix-gatekeeper.command --clobber --repo "${{ github.repository }}"
+
       # Bundle dizinindeki installer + updater paketini + .sig dosyasını release'e yükle.
       - name: Upload all bundle artifacts
         shell: bash

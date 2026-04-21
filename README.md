@@ -56,11 +56,12 @@ Native macOS/Windows app (Tauri v2 — no Electron, no background server). As of
 
 1. Grab `pb-panel_x.y.z_aarch64.dmg` from [Releases](https://github.com/By-Taika/pb-panel/releases)
 2. Open the DMG and drag `pb-panel.app` into `Applications`
-3. On first launch, if Gatekeeper warns "unidentified developer":
+3. **(Recommended)** Download `fix-gatekeeper.command` from the same release, double-click it, and hit a key when it says "done". This strips the quarantine attribute so the app opens without any Gatekeeper warning.
+4. If you skipped step 3, on first launch macOS may say "unidentified developer":
    - **System Settings → Privacy & Security → Open Anyway**
-   - Or from terminal: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
+   - Or from terminal: `xattr -cr /Applications/pb-panel.app`
 
-*(Ad-hoc signed, not notarised — normal for open-source Tauri apps. One-time approval, then runs like any other app.)*
+*(Ad-hoc signed, not notarised — Apple notarisation requires a $99/year Developer account. One-time approval, then runs like any other app.)*
 
 ### Windows 10/11
 

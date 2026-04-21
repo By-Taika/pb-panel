@@ -1,6 +1,6 @@
 [package]
 name = "pb-panel"
-version = "0.8.3"
+version = "0.8.4"
 description = "Local desktop dashboard for ProjectBase repos"
 authors = ["Serhat Kıran <info@codecrew.com.tr>"]
 edition = "2021"

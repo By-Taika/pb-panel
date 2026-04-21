@@ -2,6 +2,18 @@
 
 Bu dosya pb-panel'in her sürümünde neyin değiştiğini listeler. Format [Keep a Changelog](https://keepachangelog.com/) temelli, sürüm numaraları [SemVer](https://semver.org/).
 
+## [0.8.4] — 2026-04-21
+
+v0.8.3 Windows build'i "failed to decode secret key: Invalid symbol 10" hatasıyla düştü — GitHub secret'a private key yapıştırılırken dosyanın iki satırı da (comment line + actual key) konulmuş, aradaki newline base64 decoder'ı kırıyordu.
+
+Fix: secret'ı `base64 -i ~/.tauri/pb-panel.key | tr -d '\n'` ile tekrar üretip tek satır hale getirdik. v0.8.4 bu düzeltilmiş secret ile build ediliyor.
+
+### Yeni — macOS Gatekeeper helper script
+
+`scripts/fix-gatekeeper.command` dosyası release'e ek artifact olarak yükleniyor. Kullanıcı indirip çift tıkladığında `xattr -cr /Applications/pb-panel.app` çalıştırıyor, Gatekeeper karantinesi siliniyor, uyarı bir daha çıkmıyor.
+
+Apple notarization $99/yıl Developer hesabı gerektirdiği için tam eliminate edemiyoruz, ama bu script workaround'u tek tık'a indiriyor.
+
 ## [0.8.3] — 2026-04-21
 
 İki somut değişiklik:

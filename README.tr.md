@@ -55,11 +55,12 @@ Native macOS/Windows uygulaması (Tauri v2 — Electron değil, arka plan server
 
 1. [Releases](https://github.com/By-Taika/pb-panel/releases) sayfasından `pb-panel_x.y.z_aarch64.dmg` dosyasını indir
 2. DMG'yi aç, `pb-panel.app`'i `Applications`'a sürükle
-3. İlk açılışta Gatekeeper "kaynağı belirsiz" uyarısı çıkarsa:
+3. **(Önerilen)** Aynı release'ten `fix-gatekeeper.command` dosyasını indir, çift tıkla, "done" yazana kadar bekle. Bu, `com.apple.quarantine` özniteliğini siler ve Gatekeeper uyarısı hiç çıkmaz.
+4. Step 3'ü atladıysan, ilk açılışta macOS "kaynağı belirsiz" uyarısı verebilir:
    - **Sistem Ayarları → Gizlilik & Güvenlik → Yine de Aç**
-   - Veya terminalden: `xattr -d com.apple.quarantine /Applications/pb-panel.app`
+   - Veya terminalden: `xattr -cr /Applications/pb-panel.app`
 
-*(Ad-hoc imzalı, notarize edilmemiş — açık kaynak Tauri uygulamaları için normal. Bir kez onay verirsin, sonra başka uygulamalar gibi çalışır.)*
+*(Ad-hoc imzalı, notarize edilmemiş — Apple notarization $99/yıl Developer hesabı gerektiriyor. Bir kez onay verirsin, sonra başka uygulamalar gibi çalışır.)*
 
 ### Windows 10/11
 
