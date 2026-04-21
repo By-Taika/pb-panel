@@ -163,7 +163,9 @@ jobs:
           [ -n "$mac_sig_file" ] && mac_sig=$(cat "$mac_sig_file")
           [ -n "$win_sig_file" ] && win_sig=$(cat "$win_sig_file")
 
-          mac_url="https://github.com/${REPO}/releases/download/${TAG}/pb-panel_aarch64.app.tar.gz"
+          # `npx tauri build` emits pb-panel.app.tar.gz without an arch suffix —
+          # keep the URL matching the actual asset name or users get a 404.
+          mac_url="https://github.com/${REPO}/releases/download/${TAG}/pb-panel.app.tar.gz"
           win_url="https://github.com/${REPO}/releases/download/${TAG}/pb-panel_${VERSION}_x64-setup.nsis.zip"
 
           cat > latest.json <<EOF
