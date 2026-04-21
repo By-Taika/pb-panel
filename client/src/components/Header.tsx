@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 import type { AccountConfig, AccountsInfo } from '../lib/types';
 import { useI18n } from '../lib/i18n';
 
@@ -22,6 +24,11 @@ export function Header({
 }: HeaderProps) {
   const { lang, setLang, t } = useI18n();
   const nextLang = lang === 'tr' ? 'en' : 'tr';
+  const [version, setVersion] = useState<string>('');
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
 
   return (
     <header className="sticky top-0 z-10 backdrop-blur-xl bg-panel-bg/80 border-b border-panel-border">
@@ -29,6 +36,11 @@ export function Header({
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-gradient-to-br from-panel-accent to-panel-accent2" />
           <span className="font-mono text-sm font-bold tracking-wider text-panel-text">pb-panel</span>
+          {version && (
+            <span className="text-[10px] font-mono text-panel-accent2 border border-panel-accent2/40 rounded px-1.5 py-0.5" title="Kurulu sürüm">
+              v{version}
+            </span>
+          )}
           <span className="text-xs text-panel-muted">· ProjectBase</span>
           <span className="text-xs text-panel-muted ml-3">{totalRepos} {t('header.repos')}</span>
         </div>
